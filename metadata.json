@@ -1,0 +1,6 @@
+{
+  "name": "CRM Admin Dashboard Main Flow",
+  "description": "A modern CRM admin dashboard displaying key metrics, charts, recent activities, and smart insights. Built with React, TypeScript, and Tailwind CSS, with a conceptual integration for Gemini API insights.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
