@@ -62,8 +62,16 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSaveUs
   const commonLabelStyle = "block text-sm font-medium text-gray-700";
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" 
+        aria-modal="true" 
+        role="dialog"
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+    >
+      <div 
+        className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-xl font-semibold text-dark-text mb-4">Add New User</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

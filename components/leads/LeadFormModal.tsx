@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Lead, LeadStatus, EntityActivityLog, User, Attachment, EntityActivityType, CustomFieldDefinition, Task, TaskStatus } from '../../types';
-import { ActivityLogTypeIcon, PaperClipIcon, DocumentIcon, PhotoIcon, XCircleIcon, QuestionMarkCircleIcon, FilePdfIcon, FileWordIcon, FileExcelIcon, ClipboardDocumentListIcon, PlusIcon } from '../ui/Icon';
+import { ActivityLogTypeIcon, PaperClipIcon, DocumentIcon, PhotoIcon, XCircleIcon, QuestionMarkCircleIcon, FilePdfIcon, FileWordIcon, FileExcelIcon, ClipboardDocumentListIcon, PlusIcon, TrashIcon } from '../ui/Icon';
 import { MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB, ATTACHMENT_HINTS_LEAD, TASK_STATUS_OPTIONS } from '../../constants';
 import CustomFieldRenderer from '../shared/CustomFieldRenderer';
 import TaskFormModal from '../tasks/TaskFormModal';
@@ -93,11 +93,12 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
     setCustomFieldErrors({});
   }, [initialData, isOpen, currentUser]);
 
-  const entityActivities = useMemo(() => {
+  const recentActivities = useMemo(() => {
     if (!initialData || !activityLogs) return [];
     return activityLogs
       .filter(log => log.entityId === initialData.id && log.entityType === 'Lead')
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 5); // Limit to top 5 relevant activities
   }, [initialData, activityLogs]);
 
   // Filter tasks related to this lead
@@ -158,9 +159,21 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
 
   const removeNewFile = (fileNameToRemove: string) => {
     setFilesToUpload(prev => prev.filter(file => file.name !== fileNameToRemove));
+    // Log removal of a pending file if we are in edit mode (entity exists)
+    if (initialData?.id && addActivityLog) {
+      addActivityLog(
+        initialData.id, 
+        'Lead', 
+        EntityActivityType.FILE_REMOVED, 
+        `Removed pending file '${fileNameToRemove}' from upload queue.`, 
+        { fileName: fileNameToRemove }
+      );
+    }
   };
 
   const removeExistingAttachment = (attachmentIdToRemove: string) => {
+    // Note: Logging for this action is handled in the parent save handler (App.tsx)
+    // to ensure logs are only created if the user actually saves the form.
     setAttachmentsToRemove(prev => [...prev, attachmentIdToRemove]);
     setCurrentAttachments(prev => prev.filter(att => att.id !== attachmentIdToRemove));
   };
@@ -243,8 +256,16 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
 
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" 
+        aria-modal="true" 
+        role="dialog"
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+    >
+      <div 
+        className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-xl font-semibold text-dark-text mb-4">
           {initialData ? `Edit Lead: ${initialData.name}` : 'Add New Lead'}
         </h2>
@@ -305,10 +326,10 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
 
          {/* Attachments Section */}
           <div className="mt-6 pt-4 border-t border-gray-200">
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center justify-between mb-2">
                 <h3 className="text-md font-semibold text-dark-text flex items-center">
                     <PaperClipIcon className="w-5 h-5 mr-2 text-gray-600"/> Attachments
-                     <div className="relative ml-2">
+                     <div className="relative ml-2 group">
                         <QuestionMarkCircleIcon 
                             className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer"
                             onClick={() => setShowAttachmentHints(!showAttachmentHints)}
@@ -327,58 +348,98 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         )}
                     </div>
                 </h3>
-                <label htmlFor="lead-attachments" className="cursor-pointer text-sm bg-blue-50 hover:bg-blue-100 text-blue-600 font-medium py-1.5 px-3 rounded-md transition-colors">
-                    Add Files
-                </label>
-                <input type="file" id="lead-attachments" multiple onChange={handleFileSelect} className="hidden" accept="*/*"/>
             </div>
-            {fileSizeError && (
-              <p className="text-xs text-red-500 mt-1 whitespace-pre-line">{fileSizeError}</p>
-            )}
-
-            {filesToUpload.length > 0 && (
-              <div className="my-3">
-                <p className="text-xs font-medium text-gray-600 mb-1">New files to upload:</p>
-                <ul className="space-y-1.5">
-                  {filesToUpload.map((file, index) => (
-                    <li key={index} className="flex items-center justify-between p-1.5 bg-blue-50 rounded text-xs">
-                      <div className="flex items-center truncate">
-                        {getFileIcon(file.type, file.name)}
-                        <span className="ml-1.5 truncate" title={file.name}>{file.name}</span>
-                        <span className="ml-2 text-gray-500">({formatFileSize(file.size)})</span>
-                      </div>
-                      <button type="button" onClick={() => removeNewFile(file.name)} className="text-red-500 hover:text-red-700">
-                        <XCircleIcon className="w-4 h-4" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
             
-            {currentAttachments.filter(att => !att.isDeleted).length > 0 && (
-              <div className="my-3">
-                <p className="text-xs font-medium text-gray-600 mb-1">Current attachments:</p>
-                <ul className="space-y-1.5">
-                  {currentAttachments.filter(att => !att.isDeleted).map(att => (
-                    <li key={att.id} className="flex items-center justify-between p-1.5 bg-gray-100 rounded text-xs">
-                      <div className="flex items-center truncate">
-                         {getFileIcon(att.mimeType, att.filename)}
-                        <a href={att.url} target="_blank" rel="noopener noreferrer" className="ml-1.5 truncate hover:underline" title={`Download ${att.filename}`}>{att.filename}</a>
-                        <span className="ml-2 text-gray-500">({formatFileSize(att.size)})</span>
-                      </div>
-                      <button type="button" onClick={() => removeExistingAttachment(att.id)} className="text-red-500 hover:text-red-700">
-                        <XCircleIcon className="w-4 h-4" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            <div 
+              className="mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:bg-gray-50 transition-colors cursor-pointer relative"
+              onClick={() => document.getElementById('lead-attachments')?.click()}
+            >
+                <div className="space-y-1 text-center">
+                    <PlusIcon className="mx-auto h-12 w-12 text-gray-400" />
+                    <div className="flex text-sm text-gray-600 justify-center">
+                        <label htmlFor="lead-attachments" className="relative cursor-pointer bg-transparent rounded-md font-medium text-primary hover:text-primary-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
+                            <span>Click to upload files</span>
+                            <input id="lead-attachments" name="lead-attachments" type="file" multiple className="sr-only" onChange={handleFileSelect} accept="*/*" onClick={(e) => e.stopPropagation()} />
+                        </label>
+                        <p className="pl-1">or drag and drop</p>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                        Any file up to {MAX_FILE_SIZE_MB}MB
+                    </p>
+                </div>
+            </div>
+
+            {fileSizeError && (
+              <p className="text-xs text-red-500 mt-2 whitespace-pre-line bg-red-50 p-2 rounded">{fileSizeError}</p>
             )}
 
-            {filesToUpload.length === 0 && currentAttachments.filter(att => !att.isDeleted).length === 0 && (
-                <p className="text-xs text-gray-500 text-center py-2">No attachments for this lead.</p>
-            )}
+            <div className="mt-4 space-y-4">
+              {/* Pending Uploads */}
+              {filesToUpload.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-orange-600 mb-2 uppercase tracking-wide flex items-center">
+                    Pending Uploads <span className="ml-2 bg-orange-100 text-orange-800 py-0.5 px-2 rounded-full text-[10px]">{filesToUpload.length}</span>
+                  </p>
+                  <ul className="divide-y divide-orange-100 border border-orange-100 rounded-md bg-orange-50">
+                    {filesToUpload.map((file, index) => (
+                      <li key={`new-${index}`} className="flex items-center justify-between p-3">
+                        <div className="flex items-center truncate">
+                          {getFileIcon(file.type, file.name)}
+                          <div className="ml-3 truncate">
+                            <p className="text-sm font-medium text-gray-800 truncate" title={file.name}>{file.name}</p>
+                            <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                          </div>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => removeNewFile(file.name)} 
+                          className="text-gray-400 hover:text-red-600 p-1 rounded-full hover:bg-orange-100 transition-colors" 
+                          title="Remove pending file"
+                        >
+                          <XCircleIcon className="w-5 h-5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Existing Attachments */}
+              {currentAttachments.filter(att => !att.isDeleted).length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide flex items-center">
+                    Attached Files <span className="ml-2 bg-gray-100 text-gray-700 py-0.5 px-2 rounded-full text-[10px]">{currentAttachments.filter(att => !att.isDeleted).length}</span>
+                  </p>
+                  <ul className="divide-y divide-gray-200 border border-gray-200 rounded-md bg-white">
+                    {currentAttachments.filter(att => !att.isDeleted).map(att => (
+                      <li key={att.id} className="flex items-center justify-between p-3">
+                        <div className="flex items-center truncate">
+                           {getFileIcon(att.mimeType, att.filename)}
+                           <div className="ml-3 truncate">
+                              <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 hover:underline truncate block" title={`Download ${att.filename}`}>
+                                {att.filename}
+                              </a>
+                              <p className="text-xs text-gray-500">{formatFileSize(att.size)} • {new Date(att.uploadedAt).toLocaleDateString()}</p>
+                           </div>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => removeExistingAttachment(att.id)} 
+                          className="text-gray-400 hover:text-red-600 p-1 rounded-full hover:bg-gray-100 transition-colors" 
+                          title="Delete attachment"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {filesToUpload.length === 0 && currentAttachments.filter(att => !att.isDeleted).length === 0 && (
+                  <p className="text-sm text-gray-400 text-center py-4 italic">No files currently attached.</p>
+              )}
+            </div>
           </div>
 
           {/* Related Tasks Section */}
@@ -398,7 +459,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
               </div>
               
               {relatedTasks.length > 0 ? (
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                   {relatedTasks.map(task => (
                     <div 
                         key={task.id} 
@@ -423,38 +484,59 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
 
 
           {initialData && (
-            <div className="mt-6 pt-4 border-t border-gray-200">
-              <h3 className="text-md font-semibold text-dark-text mb-3">Activity Log</h3>
-              {entityActivities.length > 0 ? (
-                <ul className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                  {entityActivities.map(activity => (
-                    <li key={activity.id} className="text-xs text-gray-600 border-l-2 border-blue-200 pl-3 py-1.5 bg-gray-50 rounded-r-md">
-                      <div className="flex items-start">
-                         <ActivityLogTypeIcon activityType={activity.activityType} className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-                         <div>
-                            <p className="font-medium text-gray-700 leading-tight">{activity.description}</p>
-                            <p className="text-gray-500 text-[11px] mt-0.5">
-                                {new Date(activity.timestamp).toLocaleString()} by {activity.userName}
-                            </p>
-                            {activity.details && (activity.details.oldValue !== undefined || activity.details.newValue !== undefined || activity.details.taskTitle || activity.details.fileName || activity.details.customFieldLabel) && (
-                                <p className="text-gray-400 text-[11px] mt-0.5 italic">
-                                {activity.details.customFieldLabel && `Field: ${activity.details.customFieldLabel} `}
-                                {activity.details.field && !activity.details.customFieldLabel && `Field: ${activity.details.field} `}
-                                {activity.details.oldValue !== undefined && `Old: ${String(activity.details.oldValue)} `}
-                                {activity.details.newValue !== undefined && `New: ${String(activity.details.newValue)}`}
-                                {activity.details.taskTitle && `Task: ${activity.details.taskTitle}`}
-                                {activity.details.taskStatus && ` (Status: ${activity.details.taskStatus})`}
-                                {activity.details.fileName && `File: ${activity.details.fileName}`}
-                                {activity.details.fileSize && ` (Size: ${formatFileSize(activity.details.fileSize)})`}
-                                </p>
+            <div className="mt-8 bg-slate-50 p-5 rounded-xl border border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                <div className="p-1.5 bg-white rounded-md shadow-sm border border-slate-200">
+                    <ActivityLogTypeIcon activityType={EntityActivityType.NOTE_ADDED} className="w-4 h-4 text-slate-500" />
+                </div>
+                Recent Activity
+              </h3>
+              
+              {recentActivities.length > 0 ? (
+                <div className="space-y-4">
+                  {recentActivities.map((activity, index) => (
+                    <div key={activity.id} className="flex gap-3 group">
+                        <div className="flex flex-col items-center">
+                            <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm z-10">
+                                <ActivityLogTypeIcon activityType={activity.activityType} className="w-4 h-4 text-slate-600" />
+                            </div>
+                            {index !== recentActivities.length - 1 && (
+                                <div className="w-0.5 flex-grow bg-slate-200 my-1 group-hover:bg-blue-200 transition-colors"></div>
                             )}
-                         </div>
-                      </div>
-                    </li>
+                        </div>
+                        <div className="flex-grow pb-4">
+                            <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex justify-between items-start mb-1">
+                                    <span className="text-xs font-semibold text-slate-700">{activity.userName}</span>
+                                    <span className="text-[10px] text-slate-400">{new Date(activity.timestamp).toLocaleString()}</span>
+                                </div>
+                                <p className="text-sm text-slate-600 leading-snug">{activity.description}</p>
+                                {activity.details && (activity.details.oldValue !== undefined || activity.details.newValue !== undefined || activity.details.taskTitle || activity.details.fileName || activity.details.customFieldLabel) && (
+                                    <div className="mt-2 text-xs bg-slate-50 p-2 rounded border border-slate-100 text-slate-500">
+                                        {activity.details.customFieldLabel && <div className="font-medium text-slate-600">Updated {activity.details.customFieldLabel}</div>}
+                                        {!activity.details.customFieldLabel && activity.details.field && <div className="font-medium text-slate-600">Updated {activity.details.field}</div>}
+                                        
+                                        {(activity.details.oldValue !== undefined || activity.details.newValue !== undefined) && (
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="line-through opacity-75">{String(activity.details.oldValue || 'Empty')}</span>
+                                                <span>→</span>
+                                                <span className="font-medium text-blue-600">{String(activity.details.newValue || 'Empty')}</span>
+                                            </div>
+                                        )}
+                                        {activity.details.taskTitle && <div>Task: <span className="font-medium">{activity.details.taskTitle}</span></div>}
+                                        {activity.details.taskStatus && <div>Status: {activity.details.taskStatus}</div>}
+                                        {activity.details.fileName && <div>File: <span className="font-medium">{activity.details.fileName}</span> {activity.details.fileSize && `(${formatFileSize(activity.details.fileSize)})`}</div>}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                   ))}
-                </ul>
+                </div>
               ) : (
-                <p className="text-xs text-gray-500">No activities recorded for this lead yet.</p>
+                <div className="text-center py-8 text-slate-400 bg-white rounded-lg border border-dashed border-slate-200">
+                    <p>No recent activity found.</p>
+                </div>
               )}
             </div>
           )}

@@ -31,8 +31,12 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       aria-labelledby="confirmation-modal-title"
       role="dialog"
       aria-modal="true"
+      onClick={(e) => { e.stopPropagation(); onClose(); }}
     >
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+      <div 
+        className="bg-white rounded-lg shadow-xl w-full max-w-md p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-start">
           <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
             <ExclamationTriangleIcon className="h-6 w-6 text-red-600" aria-hidden="true" />

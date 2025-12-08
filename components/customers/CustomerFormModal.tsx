@@ -194,8 +194,16 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
   const commonInputStyle = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm";
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" 
+        aria-modal="true" 
+        role="dialog"
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+    >
+      <div 
+        className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-xl font-semibold text-dark-text mb-4">
           {initialData ? `Edit Customer: ${initialData.name}` : 'Add New Customer'}
         </h2>

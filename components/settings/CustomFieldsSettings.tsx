@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { CustomFieldDefinition, CustomFieldType, CustomFieldEntityType } from '../../types';
 import { CUSTOM_FIELD_TYPES_OPTIONS, SUPPORTED_CUSTOM_FIELD_ENTITIES } from '../../constants';
@@ -164,8 +165,14 @@ const CustomFieldsSettings: React.FC<CustomFieldsSettingsProps> = ({
       </div>
 
       {isFormOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4"
+            onClick={(e) => { e.stopPropagation(); closeForm(); }}
+        >
+            <div 
+                className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <h2 className="text-xl font-semibold text-dark-text mb-4">
                     {editingDefinition ? 'Edit Custom Field' : 'Create New Custom Field'}
                 </h2>
