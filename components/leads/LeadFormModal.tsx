@@ -199,6 +199,47 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
         return;
     }
 
+    // Check for standard field changes and log activity in edit mode
+    if (initialData && initialData.id) {
+        const fieldsToCheck = [
+            { key: 'name', label: 'Name' },
+            { key: 'email', label: 'Email' },
+            { key: 'phone', label: 'Phone' },
+            { key: 'company', label: 'Company' },
+            { key: 'source', label: 'Source' },
+            { key: 'assignedTo', label: 'Assigned To' }
+        ];
+
+        fieldsToCheck.forEach(({ key, label }) => {
+            const rawOldValue = initialData[key as keyof Lead];
+            const rawNewValue = formData[key as keyof typeof formData];
+            
+            const oldValue = rawOldValue === null || rawOldValue === undefined ? '' : String(rawOldValue).trim();
+            const newValue = rawNewValue === null || rawNewValue === undefined ? '' : String(rawNewValue).trim();
+
+            if (oldValue !== newValue) {
+                addActivityLog(
+                    initialData.id,
+                    'Lead',
+                    EntityActivityType.FIELD_UPDATED,
+                    `${label} updated from '${oldValue || '(empty)'}' to '${newValue || '(empty)'}'.`,
+                    { field: key, oldValue, newValue }
+                );
+            }
+        });
+
+        // Explicitly check for note changes
+        if (formData.notes !== initialData.notes) {
+            addActivityLog(
+                initialData.id,
+                'Lead',
+                EntityActivityType.NOTE_UPDATED,
+                `Notes updated for lead '${initialData.name}'.`,
+                { field: 'notes', oldValue: initialData.notes, newValue: formData.notes }
+            );
+        }
+    }
+
     onSave({
         ...(initialData ? { ...formData, id: initialData.id } : formData),
         newAttachments: filesToUpload,

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import DashboardLayout from './components/layout/DashboardLayout';
@@ -376,7 +377,6 @@ const App: React.FC = () => {
       setLeads(currentLeads => currentLeads.map(lead => lead.id === coreLeadData.id ? updatedLead : lead));
       
       if (oldLead.status !== coreLeadData.status) { addActivityLog(coreLeadData.id, 'Lead', EntityActivityType.STATUS_UPDATED, `Status from '${oldLead.status}' to '${coreLeadData.status}'.`, { field: 'status', oldValue: oldLead.status, newValue: coreLeadData.status }); }
-      if (oldLead.notes !== coreLeadData.notes) { addActivityLog(coreLeadData.id, 'Lead', EntityActivityType.NOTE_UPDATED, `Notes updated for lead '${coreLeadData.name}'.`); }
       logCustomFieldChanges(updatedLead.id, 'Lead', updatedLead.name, oldLead.customFields, updatedLead.customFields, customFieldDefinitions);
       
       processMentions(coreLeadData.notes, coreLeadData.name, 'Lead', `/leads?search=${encodeURIComponent(coreLeadData.name)}`);
