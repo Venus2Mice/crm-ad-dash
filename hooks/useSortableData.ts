@@ -1,4 +1,5 @@
 
+
 import { useState, useMemo } from 'react';
 
 type SortDirection = 'ascending' | 'descending';
@@ -8,16 +9,28 @@ interface SortConfig<T> {
   direction: SortDirection;
 }
 
-export const useSortableData = <T>(items: T[], config: SortConfig<T> | null = null) => {
+export const useSortableData = <T>(
+  items: T[], 
+  config: SortConfig<T> | null = null,
+  customSorters: Partial<Record<keyof T, (a: any, b: any) => number>> = {}
+) => {
   const [sortConfig, setSortConfig] = useState<SortConfig<T> | null>(config);
 
   const sortedItems = useMemo(() => {
     let sortableItems = [...items];
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
-        // Handle nested properties or nulls if necessary, basic implementation below
-        const aValue = a[sortConfig.key];
-        const bValue = b[sortConfig.key];
+        const key = sortConfig.key;
+        
+        // Check for custom sorter
+        if (customSorters[key]) {
+            const result = customSorters[key]!(a[key], b[key]);
+            return sortConfig.direction === 'ascending' ? result : -result;
+        }
+
+        // Default sorting
+        const aValue = a[key];
+        const bValue = b[key];
 
         if (aValue === null || aValue === undefined) return 1;
         if (bValue === null || bValue === undefined) return -1;
@@ -32,7 +45,7 @@ export const useSortableData = <T>(items: T[], config: SortConfig<T> | null = nu
       });
     }
     return sortableItems;
-  }, [items, sortConfig]);
+  }, [items, sortConfig, customSorters]);
 
   const requestSort = (key: keyof T) => {
     let direction: SortDirection = 'ascending';

@@ -1,8 +1,10 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Task, TaskStatus, Lead, Customer, Deal, User, CustomFieldDefinition } from '../../types';
 import CustomFieldRenderer from '../shared/CustomFieldRenderer';
 import { validateCustomField } from '../../utils/validationUtils';
+import { TASK_PRIORITY_OPTIONS } from '../../constants';
 
 type RelatedToType = 'Lead' | 'Customer' | 'Deal' | 'General';
 
@@ -18,7 +20,7 @@ interface TaskFormModalProps {
   customers: Customer[];
   deals: Deal[];
   taskStatuses: TaskStatus[];
-  taskPriorities: Array<Task['priority']>;
+  taskPriorities: Array<Task['priority']>; // Kept for compatibility but we will default to constant
   currentUser: User | null; // Added for context
   customFieldDefinitions: CustomFieldDefinition[]; 
 }
@@ -32,7 +34,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
   customers,
   deals,
   taskStatuses,
-  taskPriorities,
+  taskPriorities, // Can be used if passed from parent, else default to constant
   currentUser,
   customFieldDefinitions
 }) => {
@@ -51,6 +53,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
   const [isAssignedToEditable, setIsAssignedToEditable] = useState(true);
   const [customFieldErrors, setCustomFieldErrors] = useState<Record<string, string>>({});
 
+  const prioritiesToUse = taskPriorities && taskPriorities.length > 0 ? taskPriorities : TASK_PRIORITY_OPTIONS;
 
   useEffect(() => {
     if (initialData) {
@@ -273,7 +276,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 name="priority" id="priority" value={formData.priority || 'Medium'} onChange={handleChange}
                 className={`${commonInputStyle} bg-white`}
               >
-                {taskPriorities.map(p => <option key={p} value={p}>{p}</option>)}
+                {prioritiesToUse.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
             <div>

@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { getStatusColor, TASK_STATUS_OPTIONS } from '../constants';
+import { getStatusColor, TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../constants';
 import { Task, TaskStatus, Lead, Customer, Deal, User, CustomFieldDefinition } from '../types';
 import { PlusCircleIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon } from '../components/ui/Icon';
 import TaskFormModal from '../components/tasks/TaskFormModal';
@@ -11,13 +12,8 @@ import SortIcon from '../components/ui/SortIcon';
 
 const TASK_PRIORITY_OPTIONS_FILTER: { value: Task['priority'] | '', label: string }[] = [
     { value: '', label: 'All Priorities' },
-    { value: 'Low', label: 'Low' },
-    { value: 'Medium', label: 'Medium' },
-    { value: 'High', label: 'High' },
+    ...TASK_PRIORITY_OPTIONS.map(p => ({ value: p, label: p })),
 ];
-
-const TASK_PRIORITY_OPTIONS_FORM: Array<Task['priority']> = ['Low', 'Medium', 'High'];
-
 
 const RELATED_TYPE_OPTIONS: { value: Task['relatedTo']['type'] | '', label: string}[] = [
     { value: '', label: 'All Related Types'},
@@ -26,6 +22,24 @@ const RELATED_TYPE_OPTIONS: { value: Task['relatedTo']['type'] | '', label: stri
     { value: 'Customer', label: 'Customer'},
     { value: 'Deal', label: 'Deal'},
 ];
+
+// Priority helper for badge colors
+const getPriorityColor = (priority?: 'Low' | 'Medium' | 'High'): string => {
+    switch (priority) {
+      case 'High': return 'bg-red-100 text-red-800';
+      case 'Medium': return 'bg-yellow-100 text-yellow-800';
+      case 'Low': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+};
+
+// Priority Sort Logic (High > Medium > Low)
+const priorityValue = { High: 3, Medium: 2, Low: 1 };
+const prioritySorter = (a: any, b: any) => {
+    const valA = priorityValue[a as keyof typeof priorityValue] || 0;
+    const valB = priorityValue[b as keyof typeof priorityValue] || 0;
+    return valA - valB;
+};
 
 
 interface TasksPageProps {
@@ -107,8 +121,8 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, leads, customers, deals, o
     });
   }, [tasks, searchTerm, selectedStatus, selectedPriority, selectedAssignedTo, selectedRelatedType, selectedCreatedBy]);
 
-  // Sorting
-  const { items: sortedTasks, requestSort, sortConfig } = useSortableData<Task>(filteredTasks);
+  // Sorting with custom priority sorter
+  const { items: sortedTasks, requestSort, sortConfig } = useSortableData<Task>(filteredTasks, null, { priority: prioritySorter });
 
   // Paginated tasks
   const totalTasks = sortedTasks.length;
@@ -323,8 +337,8 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, leads, customers, deals, o
                 <tr>
                     {renderSortableHeader("Title", "title")}
                     {renderSortableHeader("Status", "status")}
+                    {renderSortableHeader("Priority", "priority")}
                     {renderSortableHeader("Due Date", "dueDate", "hidden sm:table-cell")}
-                    {renderSortableHeader("Priority", "priority", "hidden md:table-cell")}
                     {renderSortableHeader("Assigned To", "assignedTo", "hidden md:table-cell")}
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Created By</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Related To</th>
@@ -340,8 +354,12 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, leads, customers, deals, o
                         {task.status}
                         </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
+                        {task.priority || 'Medium'}
+                        </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden sm:table-cell">{task.dueDate}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden md:table-cell">{task.priority || 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden md:table-cell">{task.assignedTo || 'Unassigned'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">{task.createdBy?.name || 'System'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">{getRelatedToText(task)}</td>
@@ -384,7 +402,7 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, leads, customers, deals, o
             customers={customers.filter(c => !c.isDeleted)}
             deals={deals.filter(d => !d.isDeleted)}
             taskStatuses={TASK_STATUS_OPTIONS}
-            taskPriorities={['Low', 'Medium', 'High']}
+            taskPriorities={TASK_PRIORITY_OPTIONS}
             currentUser={currentUser}
             customFieldDefinitions={customFieldDefinitions} 
         />

@@ -296,6 +296,7 @@ MOCK_PRODUCTS.forEach(product => { if(product.customFields === undefined) produc
 export const LEAD_STATUS_OPTIONS = Object.values(LeadStatus);
 export const DEAL_STAGE_OPTIONS = Object.values(DealStage);
 export const TASK_STATUS_OPTIONS = Object.values(TaskStatus);
+export const TASK_PRIORITY_OPTIONS: Array<Task['priority']> = ['Low', 'Medium', 'High'];
 
 // Helper for status colors
 export const getStatusColor = (status: LeadStatus | DealStage | TaskStatus): string => {
