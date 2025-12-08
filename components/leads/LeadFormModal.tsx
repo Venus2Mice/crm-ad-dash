@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Lead, LeadStatus, EntityActivityLog, User, Attachment, EntityActivityType, CustomFieldDefinition } from '../../types';
-import { ActivityLogTypeIcon, PaperClipIcon, DocumentIcon, PhotoIcon, XCircleIcon, QuestionMarkCircleIcon, FilePdfIcon, FileWordIcon, FileExcelIcon } from '../ui/Icon';
-import { MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB, ATTACHMENT_HINTS_LEAD } from '../../constants';
-import CustomFieldRenderer from '../shared/CustomFieldRenderer'; // Import CustomFieldRenderer
 
+import React, { useState, useEffect, useMemo } from 'react';
+import { Lead, LeadStatus, EntityActivityLog, User, Attachment, EntityActivityType, CustomFieldDefinition, Task, TaskStatus } from '../../types';
+import { ActivityLogTypeIcon, PaperClipIcon, DocumentIcon, PhotoIcon, XCircleIcon, QuestionMarkCircleIcon, FilePdfIcon, FileWordIcon, FileExcelIcon, ClipboardDocumentListIcon, PlusIcon } from '../ui/Icon';
+import { MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB, ATTACHMENT_HINTS_LEAD, TASK_STATUS_OPTIONS } from '../../constants';
+import CustomFieldRenderer from '../shared/CustomFieldRenderer';
+import TaskFormModal from '../tasks/TaskFormModal';
+import { validateCustomField } from '../../utils/validationUtils';
 
 interface LeadFormModalProps {
   isOpen: boolean;
@@ -19,7 +21,10 @@ interface LeadFormModalProps {
   activityLogs: EntityActivityLog[];
   currentUser: User | null;
   addActivityLog: (entityId: string, entityType: 'Lead', activityType: EntityActivityType, description: string, details?: any) => void;
-  customFieldDefinitions: CustomFieldDefinition[]; 
+  customFieldDefinitions: CustomFieldDefinition[];
+  // New props for tasks
+  onSaveTask: (taskData: any) => void;
+  tasks: Task[];
 }
 
 const LeadFormModal: React.FC<LeadFormModalProps> = ({ 
@@ -31,7 +36,9 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
     activityLogs, 
     currentUser,
     addActivityLog,
-    customFieldDefinitions
+    customFieldDefinitions,
+    onSaveTask,
+    tasks
 }) => {
   const [formData, setFormData] = useState<Omit<Lead, 'id' | 'createdAt' | 'lastContacted' | 'attachments' | 'customFields' | 'isDeleted' | 'deletedAt'> & { customFields?: Record<string, any> }>({
     name: '',
@@ -50,6 +57,11 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
   const [attachmentsToRemove, setAttachmentsToRemove] = useState<string[]>([]);
   const [showAttachmentHints, setShowAttachmentHints] = useState(false);
   const [fileSizeError, setFileSizeError] = useState<string | null>(null);
+  const [customFieldErrors, setCustomFieldErrors] = useState<Record<string, string>>({});
+
+  // State for Task Modal
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
 
   useEffect(() => {
@@ -78,6 +90,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
     setAttachmentsToRemove([]);
     setFileSizeError(null);
     setShowAttachmentHints(false);
+    setCustomFieldErrors({});
   }, [initialData, isOpen, currentUser]);
 
   const entityActivities = useMemo(() => {
@@ -86,6 +99,12 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
       .filter(log => log.entityId === initialData.id && log.entityType === 'Lead')
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [initialData, activityLogs]);
+
+  // Filter tasks related to this lead
+  const relatedTasks = useMemo(() => {
+    if (!initialData || !tasks) return [];
+    return tasks.filter(t => !t.isDeleted && t.relatedTo?.type === 'Lead' && t.relatedTo.id === initialData.id);
+  }, [initialData, tasks]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -100,12 +119,19 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
             [fieldName]: value,
         }
     }));
+    if (customFieldErrors[fieldName]) {
+        setCustomFieldErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[fieldName];
+            return newErrors;
+        });
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFileSizeError(null);
     if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
+      const selectedFiles = Array.from(e.target.files) as File[];
       const validFiles: File[] = [];
       let oversizedFilesExist = false;
 
@@ -145,12 +171,55 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
         alert("Name and Email are required.");
         return;
     }
+
+    const newCustomFieldErrors: Record<string, string> = {};
+    customFieldDefinitions.forEach(def => {
+        const value = formData.customFields?.[def.name];
+        const error = validateCustomField(value, def);
+        if (error) {
+            newCustomFieldErrors[def.name] = error;
+        }
+    });
+
+    if (Object.keys(newCustomFieldErrors).length > 0) {
+        setCustomFieldErrors(newCustomFieldErrors);
+        return;
+    }
+
     onSave({
         ...(initialData ? { ...formData, id: initialData.id } : formData),
         newAttachments: filesToUpload,
         removedAttachmentIds: attachmentsToRemove,
     });
   };
+
+  // Task Management Handlers
+  const handleAddTask = () => {
+    if (!initialData) return;
+    setEditingTask({
+        id: '', // Will be ignored for new
+        title: '',
+        dueDate: new Date().toISOString().split('T')[0],
+        status: TaskStatus.PENDING,
+        relatedTo: { type: 'Lead', id: initialData.id, name: initialData.name },
+        assignedTo: currentUser?.name || '',
+        createdAt: '', // Ignored
+        isDeleted: false,
+    } as Task);
+    setIsTaskModalOpen(true);
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setIsTaskModalOpen(true);
+  };
+
+  const handleSaveTaskModal = (taskData: any) => {
+    onSaveTask(taskData);
+    setIsTaskModalOpen(false);
+    setEditingTask(null);
+  };
+
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -226,6 +295,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
                             definition={fieldDef}
                             value={formData.customFields?.[fieldDef.name] ?? ''}
                             onChange={handleCustomFieldChange}
+                            error={customFieldErrors[fieldDef.name]}
                         />
                     ))}
                 </div>
@@ -311,6 +381,46 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
             )}
           </div>
 
+          {/* Related Tasks Section */}
+          {initialData && (
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-md font-semibold text-dark-text flex items-center">
+                  <ClipboardDocumentListIcon className="w-5 h-5 mr-2 text-yellow-600" /> Related Tasks
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleAddTask}
+                  className="text-sm bg-yellow-50 hover:bg-yellow-100 text-yellow-700 font-medium py-1.5 px-3 rounded-md transition-colors flex items-center"
+                >
+                  <PlusIcon className="w-4 h-4 mr-1" /> Add Task
+                </button>
+              </div>
+              
+              {relatedTasks.length > 0 ? (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {relatedTasks.map(task => (
+                    <div 
+                        key={task.id} 
+                        className="flex items-center justify-between p-2 border border-gray-200 rounded text-sm bg-white hover:bg-gray-50 cursor-pointer"
+                        onClick={() => handleEditTask(task)}
+                    >
+                      <div className="flex-grow">
+                        <p className="font-medium text-gray-800">{task.title}</p>
+                        <p className="text-xs text-gray-500">Due: {task.dueDate}</p>
+                      </div>
+                      <span className={`px-2 py-0.5 inline-flex text-xs leading-4 font-semibold rounded-full bg-gray-100 text-gray-800`}>
+                        {task.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 text-center py-2">No tasks linked to this lead.</p>
+              )}
+            </div>
+          )}
+
 
           {initialData && (
             <div className="mt-6 pt-4 border-t border-gray-200">
@@ -366,6 +476,23 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
           </div>
         </form>
       </div>
+      
+      {/* Nested Task Modal */}
+      {isTaskModalOpen && (
+        <TaskFormModal
+            isOpen={isTaskModalOpen}
+            onClose={() => setIsTaskModalOpen(false)}
+            onSave={handleSaveTaskModal}
+            initialData={editingTask}
+            leads={initialData ? [initialData] : []} // Only expose current lead for validation safety
+            customers={[]} // Can't select others
+            deals={[]} // Can't select others
+            taskStatuses={TASK_STATUS_OPTIONS}
+            taskPriorities={['Low', 'Medium', 'High']}
+            currentUser={currentUser}
+            customFieldDefinitions={customFieldDefinitions}
+        />
+      )}
     </div>
   );
 };

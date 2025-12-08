@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { CustomFieldDefinition, CustomFieldType } from '../../types';
+import { CustomFieldDefinition } from '../../types';
 
 interface CustomFieldRendererProps {
   definition: CustomFieldDefinition;
@@ -88,6 +89,34 @@ const CustomFieldRenderer: React.FC<CustomFieldRendererProps> = ({
             aria-describedby={`${name}-error`}
           />
         );
+      case 'EMAIL':
+        return (
+          <input
+            type="email"
+            id={name}
+            name={name}
+            value={value || ''}
+            onChange={handleChange}
+            placeholder={placeholder}
+            required={isRequired}
+            className={commonInputStyle}
+            aria-describedby={`${name}-error`}
+          />
+        );
+      case 'URL':
+        return (
+          <input
+            type="url"
+            id={name}
+            name={name}
+            value={value || ''}
+            onChange={handleChange}
+            placeholder={placeholder}
+            required={isRequired}
+            className={commonInputStyle}
+            aria-describedby={`${name}-error`}
+          />
+        );
       case 'SELECT':
         return (
           <select
@@ -129,7 +158,7 @@ const CustomFieldRenderer: React.FC<CustomFieldRendererProps> = ({
   };
 
   return (
-    <div className="col-span-1"> {/* Adjust col-span as needed if used in a grid */}
+    <div className="col-span-1">
       <label htmlFor={name} className="block text-sm font-medium text-gray-700">
         {label}
         {isRequired && <span className="text-red-500">*</span>}

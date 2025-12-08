@@ -1,13 +1,14 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getStatusColor, LEAD_STATUS_OPTIONS } from '../constants';
-import { Lead, LeadStatus, EntityActivityLog, User, EntityActivityType, CustomFieldDefinition } from '../types';
+import { Lead, LeadStatus, EntityActivityLog, User, EntityActivityType, CustomFieldDefinition, Task } from '../types';
 import { PlusCircleIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, EnvelopeIcon } from '../components/ui/Icon';
 import LeadFormModal from '../components/leads/LeadFormModal';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { canPerformAction } from '../utils/permissions'; 
-import Pagination, { ITEMS_PER_PAGE_OPTIONS } from '../components/ui/Pagination'; // Import Pagination
+import Pagination, { ITEMS_PER_PAGE_OPTIONS } from '../components/ui/Pagination';
+import { useSortableData } from '../hooks/useSortableData';
+import SortIcon from '../components/ui/SortIcon';
 
 interface LeadsPageProps {
   leads: Lead[];
@@ -22,9 +23,11 @@ interface LeadsPageProps {
   currentUser: User | null; 
   addActivityLog: (entityId: string, entityType: 'Lead', activityType: EntityActivityType, description: string, details?: any) => void;
   customFieldDefinitions: CustomFieldDefinition[];
+  onSaveTask: (taskData: any) => void;
+  tasks: Task[];
 }
 
-const LeadsPage: React.FC<LeadsPageProps> = ({ leads, onSaveLead, onDeleteLead, activityLogs, currentUser, addActivityLog, customFieldDefinitions }) => {
+const LeadsPage: React.FC<LeadsPageProps> = ({ leads, onSaveLead, onDeleteLead, activityLogs, currentUser, addActivityLog, customFieldDefinitions, onSaveTask, tasks }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const location = useLocation();
@@ -62,7 +65,7 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ leads, onSaveLead, onDeleteLead, 
 
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
-      if (lead.isDeleted) return false; // Only show non-deleted leads
+      if (lead.isDeleted) return false;
 
       const term = searchTerm.toLowerCase();
       const matchesSearch = !term ||
@@ -77,13 +80,16 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ leads, onSaveLead, onDeleteLead, 
     });
   }, [leads, searchTerm, selectedStatus, selectedAssignedTo]);
 
+  // Sorting
+  const { items: sortedLeads, requestSort, sortConfig } = useSortableData<Lead>(filteredLeads);
+
   // Paginated leads
-  const totalLeads = filteredLeads.length;
+  const totalLeads = sortedLeads.length;
   const totalPages = Math.ceil(totalLeads / itemsPerPage);
   const paginatedLeads = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredLeads.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredLeads, currentPage, itemsPerPage]);
+    return sortedLeads.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedLeads, currentPage, itemsPerPage]);
 
 
   const handleAddNewLead = () => {
@@ -155,6 +161,19 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ leads, onSaveLead, onDeleteLead, 
     setItemsPerPage(size);
     setCurrentPage(1);
   };
+
+  const renderSortableHeader = (label: string, sortKey: keyof Lead) => (
+    <th 
+      scope="col" 
+      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group select-none"
+      onClick={() => requestSort(sortKey)}
+    >
+      <div className="flex items-center">
+        {label}
+        <SortIcon columnKey={sortKey as string} sortConfig={sortConfig} />
+      </div>
+    </th>
+  );
 
 
   return (
@@ -233,12 +252,20 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ leads, onSaveLead, onDeleteLead, 
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                 <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Email</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Company</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Assigned To</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Last Contacted</th>
+                    {renderSortableHeader('Name', 'name')}
+                    {renderSortableHeader('Status', 'status')}
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell cursor-pointer hover:bg-gray-100 group select-none" onClick={() => requestSort('email')}>
+                      <div className="flex items-center">Email <SortIcon columnKey="email" sortConfig={sortConfig} /></div>
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell cursor-pointer hover:bg-gray-100 group select-none" onClick={() => requestSort('company')}>
+                      <div className="flex items-center">Company <SortIcon columnKey="company" sortConfig={sortConfig} /></div>
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell cursor-pointer hover:bg-gray-100 group select-none" onClick={() => requestSort('assignedTo')}>
+                      <div className="flex items-center">Assigned To <SortIcon columnKey="assignedTo" sortConfig={sortConfig} /></div>
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell cursor-pointer hover:bg-gray-100 group select-none" onClick={() => requestSort('lastContacted')}>
+                      <div className="flex items-center">Last Contacted <SortIcon columnKey="lastContacted" sortConfig={sortConfig} /></div>
+                    </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
                 </thead>
@@ -316,6 +343,8 @@ const LeadsPage: React.FC<LeadsPageProps> = ({ leads, onSaveLead, onDeleteLead, 
             currentUser={currentUser}
             addActivityLog={addActivityLog}
             customFieldDefinitions={customFieldDefinitions}
+            onSaveTask={onSaveTask}
+            tasks={tasks}
         />
       )}
       {isConfirmModalOpen && itemToDeleteDetails && confirmActionHandler && (

@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { ChartDataItem, ActivityItem, Lead, Customer, Deal, Task, LeadStatus, DealStage, TaskStatus, NavItem, ReportFilterOption, User, UserRole, EntityActivityType, EntityActivityLog, Product, CustomFieldType, CustomFieldEntityType } from './types';
 import { UsersIcon, BriefcaseIcon, ChartBarIcon, CurrencyDollarIcon, ChatBubbleLeftEllipsisIcon, CogIcon, DocumentChartBarIcon, UserPlusIcon, FunnelIcon, ClipboardDocumentListIcon, ArchiveBoxXMarkIcon, ListBulletIcon, CubeIcon, WrenchScrewdriverIcon } from './components/ui/Icon'; // Added CubeIcon, WrenchScrewdriverIcon
@@ -382,6 +383,8 @@ export const CUSTOM_FIELD_TYPES_OPTIONS: { value: CustomFieldType, label: string
     { value: 'DATE', label: 'Date' },
     { value: 'SELECT', label: 'Dropdown (Select)' },
     { value: 'CHECKBOX', label: 'Checkbox (Yes/No)'},
+    { value: 'EMAIL', label: 'Email' },
+    { value: 'URL', label: 'URL' },
 ];
 
 export const SUPPORTED_CUSTOM_FIELD_ENTITIES: {value: CustomFieldEntityType, label: string}[] = [

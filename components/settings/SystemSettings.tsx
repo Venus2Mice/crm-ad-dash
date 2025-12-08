@@ -1,13 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { CompanySettings } from '../../types';
 
 interface SystemSettingsProps {
   currentSettings: CompanySettings;
   onSave: (settings: CompanySettings) => void;
+  onResetData?: () => void; // Added for reset action
 }
 
-const SystemSettings: React.FC<SystemSettingsProps> = ({ currentSettings, onSave }) => {
+const SystemSettings: React.FC<SystemSettingsProps> = ({ currentSettings, onSave, onResetData }) => {
   const [companyName, setCompanyName] = useState<string>(currentSettings.name);
   const [defaultCurrency, setDefaultCurrency] = useState<string>(currentSettings.defaultCurrency);
   // const [logoUrl, setLogoUrl] = useState<string | undefined>(currentSettings.logoUrl); // For future use
@@ -70,21 +70,6 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ currentSettings, onSave
           <p className="mt-1 text-xs text-gray-500">Default currency for new deals and financial reporting.</p>
         </div>
         
-        {/* Logo Upload - Future
-        <div>
-          <label htmlFor="logoUrl" className={commonLabelStyle}>Company Logo URL (Optional)</label>
-          <input
-            type="text"
-            id="logoUrl"
-            value={logoUrl || ''}
-            onChange={(e) => setLogoUrl(e.target.value)}
-            className={commonInputStyle}
-            placeholder="https://example.com/logo.png"
-          />
-          <p className="mt-1 text-xs text-gray-500">URL of your company logo for branding.</p>
-        </div>
-        */}
-        
         <div className="pt-2">
             <button
                 type="submit"
@@ -97,24 +82,30 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ currentSettings, onSave
 
       <div className="mt-8 border-t pt-6">
         <h4 className="text-md font-semibold text-gray-800">Advanced Configuration</h4>
-        <p className="mt-1 text-sm text-gray-500">
-          Further system-level configurations will be available here in the future.
-        </p>
         <ul className="list-disc list-inside mt-2 text-sm text-gray-500 space-y-1">
-            <li>Custom Fields Management (Leads, Customers, Deals)</li>
             <li>Integration Settings (e.g., Email Server, Calendar)</li>
             <li>Workflow Automation Rules</li>
             <li>Data Import/Export Management</li>
             <li>Security Policies (e.g., Password complexity)</li>
         </ul>
-         <button
-            type="button"
-            disabled
-            className="mt-4 px-4 py-2 bg-gray-200 text-gray-500 font-semibold rounded-md shadow-sm cursor-not-allowed"
-          >
-            Access Advanced Settings (Coming Soon)
-          </button>
       </div>
+
+      {onResetData && (
+        <div className="mt-8 border-t pt-6 border-red-200 bg-red-50 p-4 rounded-md">
+            <h4 className="text-md font-semibold text-red-700">Danger Zone</h4>
+            <p className="mt-1 text-sm text-red-600">
+                Resetting application data will wipe all leads, customers, deals, tasks, products, logs, and custom field definitions created in this session. 
+                It will restore the initial set of mock data.
+            </p>
+            <button
+                type="button"
+                onClick={onResetData}
+                className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+            >
+                Reset Application Data
+            </button>
+        </div>
+      )}
     </div>
   );
 };

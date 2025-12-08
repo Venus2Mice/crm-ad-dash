@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Customer, EntityActivityLog, User, Attachment, EntityActivityType, CustomFieldDefinition } from '../../types';
 import { ActivityLogTypeIcon, PaperClipIcon, DocumentIcon, PhotoIcon, XCircleIcon, QuestionMarkCircleIcon, FilePdfIcon, FileWordIcon, FileExcelIcon } from '../ui/Icon';
 import { MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB, ATTACHMENT_HINTS_CUSTOMER } from '../../constants';
-import CustomFieldRenderer from '../shared/CustomFieldRenderer'; // Import CustomFieldRenderer
+import CustomFieldRenderer from '../shared/CustomFieldRenderer';
+import { validateCustomField } from '../../utils/validationUtils';
 
 
 interface CustomerFormModalProps {
@@ -46,6 +48,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
   const [attachmentsToRemove, setAttachmentsToRemove] = useState<string[]>([]);
   const [showAttachmentHints, setShowAttachmentHints] = useState(false);
   const [fileSizeError, setFileSizeError] = useState<string | null>(null);
+  const [customFieldErrors, setCustomFieldErrors] = useState<Record<string, string>>({});
 
 
   useEffect(() => {
@@ -72,6 +75,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
     setAttachmentsToRemove([]);
     setFileSizeError(null);
     setShowAttachmentHints(false);
+    setCustomFieldErrors({});
   }, [initialData, isOpen, currentUser]);
 
   const entityActivities = useMemo(() => {
@@ -94,12 +98,19 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
             [fieldName]: value,
         }
     }));
+    if (customFieldErrors[fieldName]) {
+        setCustomFieldErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[fieldName];
+            return newErrors;
+        });
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFileSizeError(null);
     if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
+      const selectedFiles = Array.from(e.target.files) as File[];
       const validFiles: File[] = [];
       let oversizedFilesExist = false;
 
@@ -139,6 +150,21 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
         alert("Name and Email are required for a customer.");
         return;
     }
+
+    const newCustomFieldErrors: Record<string, string> = {};
+    customFieldDefinitions.forEach(def => {
+        const value = formData.customFields?.[def.name];
+        const error = validateCustomField(value, def);
+        if (error) {
+            newCustomFieldErrors[def.name] = error;
+        }
+    });
+
+    if (Object.keys(newCustomFieldErrors).length > 0) {
+        setCustomFieldErrors(newCustomFieldErrors);
+        return;
+    }
+
     onSave({
         ...(initialData ? { ...formData, id: initialData.id } : formData),
         newAttachments: filesToUpload,
@@ -210,6 +236,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
                             definition={fieldDef}
                             value={formData.customFields?.[fieldDef.name] ?? ''}
                             onChange={handleCustomFieldChange}
+                            error={customFieldErrors[fieldDef.name]}
                         />
                     ))}
                 </div>

@@ -4,7 +4,9 @@ import { Customer, EntityActivityLog, User, EntityActivityType, CustomFieldDefin
 import { PlusCircleIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, EnvelopeIcon } from '../components/ui/Icon';
 import CustomerFormModal from '../components/customers/CustomerFormModal';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
-import Pagination, { ITEMS_PER_PAGE_OPTIONS } from '../components/ui/Pagination'; // Import Pagination
+import Pagination, { ITEMS_PER_PAGE_OPTIONS } from '../components/ui/Pagination';
+import { useSortableData } from '../hooks/useSortableData';
+import SortIcon from '../components/ui/SortIcon';
 
 
 interface CustomersPageProps {
@@ -69,13 +71,16 @@ const CustomersPage: React.FC<CustomersPageProps> = ({ customers, onSaveCustomer
     });
   }, [customers, searchTerm, selectedAccountManager]);
 
+  // Sorting
+  const { items: sortedCustomers, requestSort, sortConfig } = useSortableData<Customer>(filteredCustomers);
+
   // Paginated customers
-  const totalCustomers = filteredCustomers.length;
+  const totalCustomers = sortedCustomers.length;
   const totalPages = Math.ceil(totalCustomers / itemsPerPage);
   const paginatedCustomers = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredCustomers.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredCustomers, currentPage, itemsPerPage]);
+    return sortedCustomers.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedCustomers, currentPage, itemsPerPage]);
 
 
   const handleAddNewCustomer = () => {
@@ -143,6 +148,19 @@ const CustomersPage: React.FC<CustomersPageProps> = ({ customers, onSaveCustomer
     setCurrentPage(1);
   };
 
+  const renderSortableHeader = (label: string, sortKey: keyof Customer, hiddenClasses: string = "") => (
+    <th 
+      scope="col" 
+      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group select-none ${hiddenClasses}`}
+      onClick={() => requestSort(sortKey)}
+    >
+      <div className="flex items-center">
+        {label}
+        <SortIcon columnKey={sortKey as string} sortConfig={sortConfig} />
+      </div>
+    </th>
+  );
+
 
   return (
     <div className="space-y-6">
@@ -206,13 +224,13 @@ const CustomersPage: React.FC<CustomersPageProps> = ({ customers, onSaveCustomer
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                 <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Company</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Phone</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Total Revenue</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Account Manager</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Created At</th>
+                    {renderSortableHeader("Name", "name")}
+                    {renderSortableHeader("Email", "email")}
+                    {renderSortableHeader("Company", "company", "hidden md:table-cell")}
+                    {renderSortableHeader("Phone", "phone", "hidden lg:table-cell")}
+                    {renderSortableHeader("Total Revenue", "totalRevenue", "hidden lg:table-cell")}
+                    {renderSortableHeader("Account Manager", "accountManager", "hidden md:table-cell")}
+                    {renderSortableHeader("Created At", "createdAt", "hidden xl:table-cell")}
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
                 </thead>

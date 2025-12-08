@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { User, UserRole, CompanySettings, CustomFieldDefinition } from '../types'; // Added CustomFieldDefinition
 import UserProfileSettings from '../components/settings/UserProfileSettings';
@@ -21,6 +20,7 @@ interface SettingsPageProps {
     onAddCustomFieldDefinition: (definition: CustomFieldDefinition) => void;
     onUpdateCustomFieldDefinition: (definition: CustomFieldDefinition) => void;
     onDeleteCustomFieldDefinition: (definitionId: string) => void;
+    onResetData?: () => void; // Added for data reset
 }
 
 type SettingsTab = 'profile' | 'security' | 'userManagement' | 'systemSettings' | 'customFields'; // Added customFields
@@ -36,7 +36,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     customFieldDefinitions,
     onAddCustomFieldDefinition,
     onUpdateCustomFieldDefinition,
-    onDeleteCustomFieldDefinition
+    onDeleteCustomFieldDefinition,
+    onResetData
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
 
@@ -70,6 +71,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
         component: <SystemSettings 
                         currentSettings={systemSettings}
                         onSave={onSaveSystemSettings}
+                        onResetData={onResetData} // Pass the reset handler
                     /> 
     });
     tabs.push({

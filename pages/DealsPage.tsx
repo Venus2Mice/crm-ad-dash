@@ -1,23 +1,25 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getStatusColor, DEAL_STAGE_OPTIONS } from '../constants';
-import { Deal, Customer, Lead, DealStage, EntityActivityLog, User, EntityActivityType, Product, CustomFieldDefinition } from '../types'; // Added Product
+import { Deal, Customer, Lead, DealStage, EntityActivityLog, User, EntityActivityType, Product, CustomFieldDefinition, Task } from '../types';
 import { PlusCircleIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon } from '../components/ui/Icon';
 import DealFormModal from '../components/deals/DealFormModal';
 import ConfirmationModal from '../components/ui/ConfirmationModal'; 
-import Pagination, { ITEMS_PER_PAGE_OPTIONS } from '../components/ui/Pagination'; // Import Pagination
+import Pagination, { ITEMS_PER_PAGE_OPTIONS } from '../components/ui/Pagination';
+import { useSortableData } from '../hooks/useSortableData';
+import SortIcon from '../components/ui/SortIcon';
 
 
 interface DealsPageProps {
   deals: Deal[];
   customers: Customer[];
   leads: Lead[];
-  products: Product[]; // Added
+  products: Product[];
   onSaveDeal: (dealData: Omit<Deal, 'id' | 'createdAt' | 'attachments' | 'isDeleted' | 'deletedAt' | 'customFields'> & { 
       id?: string;
       newAttachments?: File[];
       removedAttachmentIds?: string[];
-      lineItems?: Deal['lineItems']; // Ensure lineItems prop for saving
+      lineItems?: Deal['lineItems'];
       customFields?: Record<string, any>; 
     }) => void;
   onDeleteDeal: (dealId: string) => void;
@@ -26,11 +28,13 @@ interface DealsPageProps {
   addActivityLog: (entityId: string, entityType: 'Deal', activityType: EntityActivityType, description: string, details?: any) => void;
   defaultCurrency: string;
   customFieldDefinitions: CustomFieldDefinition[]; 
+  onSaveTask: (taskData: any) => void;
+  tasks: Task[];
 }
 
 const DealsPage: React.FC<DealsPageProps> = ({ 
     deals, customers, leads, products, onSaveDeal, onDeleteDeal, 
-    activityLogs, currentUser, addActivityLog, defaultCurrency, customFieldDefinitions 
+    activityLogs, currentUser, addActivityLog, defaultCurrency, customFieldDefinitions, onSaveTask, tasks
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
@@ -79,13 +83,16 @@ const DealsPage: React.FC<DealsPageProps> = ({
     });
   }, [deals, searchTerm, selectedStage, selectedOwner]);
 
+  // Sorting
+  const { items: sortedDeals, requestSort, sortConfig } = useSortableData<Deal>(filteredDeals);
+
   // Paginated deals
-  const totalDeals = filteredDeals.length;
+  const totalDeals = sortedDeals.length;
   const totalPages = Math.ceil(totalDeals / itemsPerPage);
   const paginatedDeals = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredDeals.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredDeals, currentPage, itemsPerPage]);
+    return sortedDeals.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedDeals, currentPage, itemsPerPage]);
 
 
   const handleAddNewDeal = () => {
@@ -161,6 +168,19 @@ const DealsPage: React.FC<DealsPageProps> = ({
     setItemsPerPage(size);
     setCurrentPage(1);
   };
+
+  const renderSortableHeader = (label: string, sortKey: keyof Deal, hiddenClasses: string = "") => (
+    <th 
+      scope="col" 
+      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group select-none ${hiddenClasses}`}
+      onClick={() => requestSort(sortKey)}
+    >
+      <div className="flex items-center">
+        {label}
+        <SortIcon columnKey={sortKey as string} sortConfig={sortConfig} />
+      </div>
+    </th>
+  );
 
 
   return (
@@ -238,12 +258,12 @@ const DealsPage: React.FC<DealsPageProps> = ({
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                 <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Name</th>
+                    {renderSortableHeader("Deal Name", "dealName")}
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Associated With</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Close Date</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Owner</th>
+                    {renderSortableHeader("Stage", "stage")}
+                    {renderSortableHeader("Value", "value")}
+                    {renderSortableHeader("Close Date", "closeDate", "hidden md:table-cell")}
+                    {renderSortableHeader("Owner", "owner", "hidden md:table-cell")}
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
                 </thead>
@@ -299,13 +319,15 @@ const DealsPage: React.FC<DealsPageProps> = ({
           initialData={editingDeal}
           customers={customers.filter(c => !c.isDeleted)} 
           leads={leads.filter(l => !l.isDeleted)}
-          products={products} // Pass all active products
+          products={products}
           dealStages={DEAL_STAGE_OPTIONS}
           activityLogs={activityLogs}
           currentUser={currentUser}
           addActivityLog={addActivityLog}
           defaultCurrency={defaultCurrency}
-          customFieldDefinitions={customFieldDefinitions} 
+          customFieldDefinitions={customFieldDefinitions}
+          onSaveTask={onSaveTask}
+          tasks={tasks}
         />
       )}
       {isConfirmModalOpen && itemToDeleteDetails && confirmActionHandler && (

@@ -36,7 +36,7 @@ export const fetchDashboardInsights = async (crmData: SmartInsightsCrmData): Pro
   await new Promise(resolve => setTimeout(resolve, 500));
 
   try {
-    const model = "gemini-2.5-flash-preview-04-17";
+    const model = "gemini-2.5-flash";
     
     let promptContext = "Analyze the following CRM dashboard data and provide 2-3 actionable insights for a sales manager.\nFocus on trends, potential opportunities, or areas needing attention.\nKeep insights concise, easy to understand, and formatted as a multi-line string where each insight is a separate paragraph.\n\n";
 
@@ -81,16 +81,28 @@ export const fetchDashboardInsights = async (crmData: SmartInsightsCrmData): Pro
   } catch (error: any) {
     console.error("Error fetching insights from Gemini API:", error);
     let errorMessage = "Failed to communicate with AI for insights.";
-    if (error.message) {
-        errorMessage += ` Details: ${error.message}`;
-    }
-    if (error.status) { 
-        errorMessage += ` (Status: ${error.status})`;
-    }
-    if (error.message && error.message.includes('API key not valid')) {
+    
+    // Extract message from various possible error structures (e.g. nested error object)
+    const apiError = error.error || error;
+    const message = apiError.message || (typeof error === 'string' ? error : JSON.stringify(error));
+    const code = apiError.code || error.status;
+
+    // Handle specific error for missing entity/key issues
+    if (message.includes("Requested entity was not found") || code === 404 || apiError.status === "NOT_FOUND") {
+        if ((window as any).aistudio && (window as any).aistudio.openSelectKey) {
+             (window as any).aistudio.openSelectKey();
+        }
+        errorMessage = "The requested AI model was not found or the API key is invalid for this resource. Please re-select your API key.";
+    } else if (message.includes('API key not valid')) {
         errorMessage = "The configured API key for Gemini is invalid. Please check your configuration.";
-    } else if (error.message && error.message.includes('quota')) {
+    } else if (message.includes('quota')) {
         errorMessage = "API quota exceeded. Please try again later or check your Gemini API plan.";
+    } else if (message) {
+        errorMessage += ` Details: ${message}`;
+    }
+    
+    if (code) { 
+        errorMessage += ` (Status: ${code})`;
     }
     
     throw new Error(errorMessage);
@@ -114,7 +126,7 @@ export const fetchSalesForecast = async (forecastInput: SalesForecastInputData):
   // await new Promise(resolve => setTimeout(resolve, 700));
 
   try {
-    const model = "gemini-2.5-flash-preview-04-17"; // Correct model name
+    const model = "gemini-2.5-flash"; // Correct model name
 
     let prompt = `You are an expert sales forecasting AI. Based on the following CRM data, provide a sales forecast for ${forecastInput.forecastPeriod}.
 Data:
@@ -151,17 +163,30 @@ Keep the language professional and concise. The output should be plain text.
   } catch (error: any) {
     console.error("Error fetching sales forecast from Gemini API:", error);
     let errorMessage = "Failed to communicate with AI for sales forecast.";
-     if (error.message) {
-        errorMessage += ` Details: ${error.message}`;
-    }
-    if (error.status) { 
-        errorMessage += ` (Status: ${error.status})`;
-    }
-    if (error.message && error.message.includes('API key not valid')) {
+    
+    // Extract message from various possible error structures
+    const apiError = error.error || error;
+    const message = apiError.message || (typeof error === 'string' ? error : JSON.stringify(error));
+    const code = apiError.code || error.status;
+    
+    // Handle specific error for missing entity/key issues
+    if (message.includes("Requested entity was not found") || code === 404 || apiError.status === "NOT_FOUND") {
+        if ((window as any).aistudio && (window as any).aistudio.openSelectKey) {
+             (window as any).aistudio.openSelectKey();
+        }
+        errorMessage = "The requested AI model was not found or the API key is invalid for this resource. Please re-select your API key.";
+    } else if (message.includes('API key not valid')) {
         errorMessage = "The configured API key for Gemini is invalid. Please check your configuration.";
-    } else if (error.message && error.message.includes('quota')) {
+    } else if (message.includes('quota')) {
         errorMessage = "API quota exceeded. Please try again later or check your Gemini API plan.";
+    } else if (message) {
+        errorMessage += ` Details: ${message}`;
     }
+
+    if (code) { 
+        errorMessage += ` (Status: ${code})`;
+    }
+
     throw new Error(errorMessage);
   }
 };

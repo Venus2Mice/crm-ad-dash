@@ -1,8 +1,11 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Deal, Customer, Lead, DealStage, EntityActivityLog, User, Attachment, EntityActivityType, Product, DealLineItem, CustomFieldDefinition } from '../../types';
-import { ActivityLogTypeIcon, PaperClipIcon, DocumentIcon, PhotoIcon, XCircleIcon, FilePdfIcon, FileWordIcon, FileExcelIcon, QuestionMarkCircleIcon, PlusIcon, TrashIcon as LineItemTrashIcon } from '../ui/Icon';
-import { MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB, ATTACHMENT_HINTS_DEAL } from '../../constants';
-import CustomFieldRenderer from '../shared/CustomFieldRenderer'; // Import CustomFieldRenderer
+import { Deal, Customer, Lead, DealStage, EntityActivityLog, User, Attachment, EntityActivityType, Product, DealLineItem, CustomFieldDefinition, Task, TaskStatus } from '../../types';
+import { ActivityLogTypeIcon, PaperClipIcon, DocumentIcon, PhotoIcon, XCircleIcon, FilePdfIcon, FileWordIcon, FileExcelIcon, QuestionMarkCircleIcon, PlusIcon, TrashIcon as LineItemTrashIcon, ClipboardDocumentListIcon } from '../ui/Icon';
+import { MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB, ATTACHMENT_HINTS_DEAL, TASK_STATUS_OPTIONS } from '../../constants';
+import CustomFieldRenderer from '../shared/CustomFieldRenderer';
+import TaskFormModal from '../tasks/TaskFormModal';
+import { validateCustomField } from '../../utils/validationUtils';
 
 
 interface DealFormModalProps {
@@ -26,7 +29,10 @@ interface DealFormModalProps {
   currentUser: User | null;
   addActivityLog: (entityId: string, entityType: 'Deal', activityType: EntityActivityType, description: string, details?: any) => void;
   defaultCurrency: string;
-  customFieldDefinitions: CustomFieldDefinition[]; 
+  customFieldDefinitions: CustomFieldDefinition[];
+  // New props for tasks
+  onSaveTask: (taskData: any) => void;
+  tasks: Task[];
 }
 
 const DealFormModal: React.FC<DealFormModalProps> = ({ 
@@ -42,7 +48,9 @@ const DealFormModal: React.FC<DealFormModalProps> = ({
     currentUser,
     addActivityLog,
     defaultCurrency,
-    customFieldDefinitions
+    customFieldDefinitions,
+    onSaveTask,
+    tasks
 }) => {
   const [formData, setFormData] = useState<Omit<Deal, 'id' | 'createdAt' | 'attachments' | 'isDeleted' | 'deletedAt' | 'lineItems' | 'customFields'> & { customFields?: Record<string, any> }>({
     dealName: '',
@@ -67,6 +75,11 @@ const DealFormModal: React.FC<DealFormModalProps> = ({
   const [attachmentsToRemove, setAttachmentsToRemove] = useState<string[]>([]);
   const [showAttachmentHints, setShowAttachmentHints] = useState(false);
   const [fileSizeError, setFileSizeError] = useState<string | null>(null);
+  const [customFieldErrors, setCustomFieldErrors] = useState<Record<string, string>>({});
+
+  // State for Task Modal
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const activeProducts = useMemo(() => products.filter(p => p.isActive), [products]);
 
@@ -110,6 +123,7 @@ const DealFormModal: React.FC<DealFormModalProps> = ({
     setShowAttachmentHints(false);
     setSelectedProductId('');
     setCurrentQuantity(1);
+    setCustomFieldErrors({});
   }, [initialData, isOpen, currentUser, defaultCurrency, calculateTotalValueFromLineItems]);
 
   // Effect to update deal value when line items change
@@ -138,6 +152,12 @@ const DealFormModal: React.FC<DealFormModalProps> = ({
       .filter(log => log.entityId === initialData.id && log.entityType === 'Deal')
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [initialData, activityLogs]);
+
+  // Filter tasks related to this deal
+  const relatedTasks = useMemo(() => {
+    if (!initialData || !tasks) return [];
+    return tasks.filter(t => !t.isDeleted && t.relatedTo?.type === 'Deal' && t.relatedTo.id === initialData.id);
+  }, [initialData, tasks]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -169,12 +189,19 @@ const DealFormModal: React.FC<DealFormModalProps> = ({
             [fieldName]: value,
         }
     }));
+    if (customFieldErrors[fieldName]) {
+        setCustomFieldErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[fieldName];
+            return newErrors;
+        });
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFileSizeError(null);
     if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
+      const selectedFiles = Array.from(e.target.files) as File[];
       const validFiles: File[] = [];
       let oversizedFilesExist = false;
 
@@ -244,6 +271,21 @@ const DealFormModal: React.FC<DealFormModalProps> = ({
         alert("Deal Name, Close Date, and Owner are required. Value must be zero or positive.");
         return;
     }
+
+    const newCustomFieldErrors: Record<string, string> = {};
+    customFieldDefinitions.forEach(def => {
+        const value = formData.customFields?.[def.name];
+        const error = validateCustomField(value, def);
+        if (error) {
+            newCustomFieldErrors[def.name] = error;
+        }
+    });
+
+    if (Object.keys(newCustomFieldErrors).length > 0) {
+        setCustomFieldErrors(newCustomFieldErrors);
+        return;
+    }
+
     onSave({
         ...(initialData ? { ...formData, id: initialData.id } : formData),
         newAttachments: filesToUpload,
@@ -251,6 +293,34 @@ const DealFormModal: React.FC<DealFormModalProps> = ({
         lineItems: currentLineItems,
     });
   };
+
+  // Task Management Handlers
+  const handleAddTask = () => {
+    if (!initialData) return;
+    setEditingTask({
+        id: '', // Will be ignored for new
+        title: '',
+        dueDate: new Date().toISOString().split('T')[0],
+        status: TaskStatus.PENDING,
+        relatedTo: { type: 'Deal', id: initialData.id, name: initialData.dealName },
+        assignedTo: currentUser?.name || '',
+        createdAt: '', // Ignored
+        isDeleted: false,
+    } as Task);
+    setIsTaskModalOpen(true);
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setIsTaskModalOpen(true);
+  };
+
+  const handleSaveTaskModal = (taskData: any) => {
+    onSaveTask(taskData);
+    setIsTaskModalOpen(false);
+    setEditingTask(null);
+  };
+
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -431,6 +501,7 @@ const DealFormModal: React.FC<DealFormModalProps> = ({
                             definition={fieldDef}
                             value={formData.customFields?.[fieldDef.name] ?? ''}
                             onChange={handleCustomFieldChange}
+                            error={customFieldErrors[fieldDef.name]}
                         />
                     ))}
                 </div>
@@ -514,6 +585,46 @@ const DealFormModal: React.FC<DealFormModalProps> = ({
             )}
           </div>
 
+          {/* Related Tasks Section */}
+          {initialData && (
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-md font-semibold text-dark-text flex items-center">
+                  <ClipboardDocumentListIcon className="w-5 h-5 mr-2 text-yellow-600" /> Related Tasks
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleAddTask}
+                  className="text-sm bg-yellow-50 hover:bg-yellow-100 text-yellow-700 font-medium py-1.5 px-3 rounded-md transition-colors flex items-center"
+                >
+                  <PlusIcon className="w-4 h-4 mr-1" /> Add Task
+                </button>
+              </div>
+              
+              {relatedTasks.length > 0 ? (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {relatedTasks.map(task => (
+                    <div 
+                        key={task.id} 
+                        className="flex items-center justify-between p-2 border border-gray-200 rounded text-sm bg-white hover:bg-gray-50 cursor-pointer"
+                        onClick={() => handleEditTask(task)}
+                    >
+                      <div className="flex-grow">
+                        <p className="font-medium text-gray-800">{task.title}</p>
+                        <p className="text-xs text-gray-500">Due: {task.dueDate}</p>
+                      </div>
+                      <span className={`px-2 py-0.5 inline-flex text-xs leading-4 font-semibold rounded-full bg-gray-100 text-gray-800`}>
+                        {task.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 text-center py-2">No tasks linked to this deal.</p>
+              )}
+            </div>
+          )}
+
           {initialData && (
             <div className="mt-6 pt-4 border-t border-gray-200">
               <h3 className="text-md font-semibold text-dark-text mb-3">Activity Log</h3>
@@ -568,6 +679,23 @@ const DealFormModal: React.FC<DealFormModalProps> = ({
           </div>
         </form>
       </div>
+
+      {/* Nested Task Modal */}
+      {isTaskModalOpen && (
+        <TaskFormModal
+            isOpen={isTaskModalOpen}
+            onClose={() => setIsTaskModalOpen(false)}
+            onSave={handleSaveTaskModal}
+            initialData={editingTask}
+            leads={[]} // Can't select others
+            customers={[]} // Can't select others
+            deals={initialData ? [initialData] : []} // Only expose current deal
+            taskStatuses={TASK_STATUS_OPTIONS}
+            taskPriorities={['Low', 'Medium', 'High']}
+            currentUser={currentUser}
+            customFieldDefinitions={customFieldDefinitions}
+        />
+      )}
     </div>
   );
 };

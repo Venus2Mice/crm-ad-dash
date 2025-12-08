@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import DashboardLayout from './components/layout/DashboardLayout';
@@ -26,19 +25,34 @@ const DEFAULT_SYSTEM_SETTINGS: CompanySettings = {
   logoUrl: undefined,
 };
 
+// Helper to load state from local storage or use default
+const loadState = <T,>(key: string, defaultValue: T): T => {
+  const stored = localStorage.getItem(key);
+  if (!stored) return defaultValue;
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    console.error(`Error parsing ${key} from local storage`, e);
+    return defaultValue;
+  }
+};
+
 const App: React.FC = () => {
-  const [leads, setLeads] = useState<Lead[]>(MOCK_LEADS);
-  const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
-  const [deals, setDeals] = useState<Deal[]>(MOCK_DEALS);
-  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS); 
-  const [activityLogs, setActivityLogs] = useState<EntityActivityLog[]>([]);
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
+  // Initialize state from Local Storage or Mock Data
+  const [leads, setLeads] = useState<Lead[]>(() => loadState('crm_leads', MOCK_LEADS));
+  const [customers, setCustomers] = useState<Customer[]>(() => loadState('crm_customers', MOCK_CUSTOMERS));
+  const [deals, setDeals] = useState<Deal[]>(() => loadState('crm_deals', MOCK_DEALS));
+  const [tasks, setTasks] = useState<Task[]>(() => loadState('crm_tasks', MOCK_TASKS));
+  const [products, setProducts] = useState<Product[]>(() => loadState('crm_products', MOCK_PRODUCTS)); 
+  const [activityLogs, setActivityLogs] = useState<EntityActivityLog[]>(() => loadState('crm_activity_logs', []));
+  const [users, setUsers] = useState<User[]>(() => loadState('crm_users', MOCK_USERS));
+  
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [systemSettings, setSystemSettings] = useState<CompanySettings>(DEFAULT_SYSTEM_SETTINGS);
-  const [customFieldDefinitions, setCustomFieldDefinitions] = useState<CustomFieldDefinition[]>([]);
+  
+  const [systemSettings, setSystemSettings] = useState<CompanySettings>(() => loadState('systemSettings', DEFAULT_SYSTEM_SETTINGS));
+  const [customFieldDefinitions, setCustomFieldDefinitions] = useState<CustomFieldDefinition[]>(() => loadState('customFieldDefinitions', []));
 
 
   // State for product edit confirmation
@@ -53,6 +67,18 @@ const App: React.FC = () => {
   const todayDateString = () => new Date().toISOString().split('T')[0];
   const nowISO = () => new Date().toISOString();
   
+  // Persistence Effects
+  useEffect(() => { localStorage.setItem('crm_leads', JSON.stringify(leads)); }, [leads]);
+  useEffect(() => { localStorage.setItem('crm_customers', JSON.stringify(customers)); }, [customers]);
+  useEffect(() => { localStorage.setItem('crm_deals', JSON.stringify(deals)); }, [deals]);
+  useEffect(() => { localStorage.setItem('crm_tasks', JSON.stringify(tasks)); }, [tasks]);
+  useEffect(() => { localStorage.setItem('crm_products', JSON.stringify(products)); }, [products]);
+  useEffect(() => { localStorage.setItem('crm_activity_logs', JSON.stringify(activityLogs)); }, [activityLogs]);
+  useEffect(() => { localStorage.setItem('crm_users', JSON.stringify(users)); }, [users]);
+  useEffect(() => { localStorage.setItem('systemSettings', JSON.stringify(systemSettings)); }, [systemSettings]);
+  useEffect(() => { localStorage.setItem('customFieldDefinitions', JSON.stringify(customFieldDefinitions)); }, [customFieldDefinitions]);
+
+
   useEffect(() => {
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
@@ -68,33 +94,6 @@ const App: React.FC = () => {
         localStorage.removeItem('currentUser');
       }
     }
-
-    const storedSystemSettings = localStorage.getItem('systemSettings');
-    if (storedSystemSettings) {
-        try {
-            setSystemSettings(JSON.parse(storedSystemSettings));
-        } catch (error) {
-            console.error("Failed to parse system settings from localStorage:", error);
-            localStorage.setItem('systemSettings', JSON.stringify(DEFAULT_SYSTEM_SETTINGS));
-            setSystemSettings(DEFAULT_SYSTEM_SETTINGS);
-        }
-    } else {
-        localStorage.setItem('systemSettings', JSON.stringify(DEFAULT_SYSTEM_SETTINGS));
-        setSystemSettings(DEFAULT_SYSTEM_SETTINGS);
-    }
-    
-    // Load Custom Field Definitions
-    const storedCustomFieldDefs = localStorage.getItem('customFieldDefinitions');
-    if (storedCustomFieldDefs) {
-        try {
-            setCustomFieldDefinitions(JSON.parse(storedCustomFieldDefs));
-        } catch (error) {
-            console.error("Failed to parse custom field definitions from localStorage:", error);
-            setCustomFieldDefinitions([]);
-        }
-    }
-
-
     setIsAuthLoading(false);
   }, []);
 
@@ -105,13 +104,23 @@ const App: React.FC = () => {
     }
   }, [notifications, currentUser]);
 
-  useEffect(() => {
-    localStorage.setItem('systemSettings', JSON.stringify(systemSettings));
-  }, [systemSettings]);
 
-  useEffect(() => {
-    localStorage.setItem('customFieldDefinitions', JSON.stringify(customFieldDefinitions));
-  }, [customFieldDefinitions]);
+  const handleResetData = () => {
+    if (window.confirm("Are you sure you want to reset all application data to defaults? This cannot be undone.")) {
+        localStorage.removeItem('crm_leads');
+        localStorage.removeItem('crm_customers');
+        localStorage.removeItem('crm_deals');
+        localStorage.removeItem('crm_tasks');
+        localStorage.removeItem('crm_products');
+        localStorage.removeItem('crm_activity_logs');
+        localStorage.removeItem('crm_users');
+        localStorage.removeItem('systemSettings');
+        localStorage.removeItem('customFieldDefinitions');
+        // We do NOT remove currentUser to keep them logged in
+        
+        window.location.reload();
+    }
+  };
 
 
   const addActivityLog = useCallback((
@@ -970,15 +979,19 @@ const App: React.FC = () => {
             />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage leads={leads.filter(l => !l.isDeleted)} customers={customers.filter(c => !c.isDeleted)} deals={deals.filter(d => !d.isDeleted)} tasks={tasks.filter(t => !t.isDeleted)} activityLogs={activityLogs} currentUser={currentUser} />} />
-            <Route path="/leads" element={<LeadsPage leads={leads} onSaveLead={handleSaveLead} onDeleteLead={handleDeleteLead} activityLogs={activityLogs} currentUser={currentUser} addActivityLog={addActivityLog} customFieldDefinitions={customFieldDefinitions.filter(cfd => cfd.entityType === 'Lead')} />} />
+            
+            <Route path="/leads" element={<LeadsPage leads={leads} onSaveLead={handleSaveLead} onDeleteLead={handleDeleteLead} activityLogs={activityLogs} currentUser={currentUser} addActivityLog={addActivityLog} customFieldDefinitions={customFieldDefinitions.filter(cfd => cfd.entityType === 'Lead')} onSaveTask={handleSaveTask} tasks={tasks.filter(t => !t.isDeleted)} />} />
+            
             <Route path="/customers" element={<CustomersPage customers={customers} onSaveCustomer={handleSaveCustomer} onDeleteCustomer={handleDeleteCustomer} activityLogs={activityLogs} currentUser={currentUser} addActivityLog={addActivityLog} customFieldDefinitions={customFieldDefinitions.filter(cfd => cfd.entityType === 'Customer')} />} />
-            <Route path="/deals" element={<DealsPage deals={deals} customers={customers.filter(c => !c.isDeleted)} leads={leads.filter(l => !l.isDeleted)} products={products.filter(p => p.isActive)} onSaveDeal={handleSaveDeal} onDeleteDeal={handleDeleteDeal} activityLogs={activityLogs} currentUser={currentUser} addActivityLog={addActivityLog} defaultCurrency={systemSettings.defaultCurrency} customFieldDefinitions={customFieldDefinitions.filter(cfd => cfd.entityType === 'Deal')} />} />
+            
+            <Route path="/deals" element={<DealsPage deals={deals} customers={customers.filter(c => !c.isDeleted)} leads={leads.filter(l => !l.isDeleted)} products={products.filter(p => p.isActive)} onSaveDeal={handleSaveDeal} onDeleteDeal={handleDeleteDeal} activityLogs={activityLogs} currentUser={currentUser} addActivityLog={addActivityLog} defaultCurrency={systemSettings.defaultCurrency} customFieldDefinitions={customFieldDefinitions.filter(cfd => cfd.entityType === 'Deal')} onSaveTask={handleSaveTask} tasks={tasks.filter(t => !t.isDeleted)} />} />
+            
             <Route path="/tasks" element={<TasksPage tasks={tasks} leads={leads.filter(l => !l.isDeleted)} customers={customers.filter(c => !c.isDeleted)} deals={deals.filter(d => !d.isDeleted)} onSaveTask={handleSaveTask} onDeleteTask={handleDeleteTask} currentUser={currentUser} customFieldDefinitions={customFieldDefinitions.filter(cfd => cfd.entityType === 'Task')} />} />
             <Route path="/products" element={<ProductsPage products={products} onSaveProduct={handleSaveProduct} onToggleActiveState={handleToggleProductActiveState} onBulkToggleProductActiveState={handleBulkToggleProductActiveState} currentUser={currentUser} defaultCurrency={systemSettings.defaultCurrency} customFieldDefinitions={customFieldDefinitions.filter(cfd => cfd.entityType === 'Product')} />} />
             <Route path="/reports" element={<ReportsPage leads={leads.filter(l => !l.isDeleted)} customers={customers.filter(c => !c.isDeleted)} deals={deals.filter(d => !d.isDeleted)} tasks={tasks.filter(t => !t.isDeleted)} />} />
             <Route path="/activity-log" element={<ActivityLogPage activityLogs={activityLogs} users={users} />} />
             <Route path="/archive" element={<ArchivePage leads={leads} customers={customers} deals={deals} tasks={tasks} onRestoreLead={handleRestoreLead} onPermanentDeleteLead={handlePermanentDeleteLead} onRestoreCustomer={handleRestoreCustomer} onPermanentDeleteCustomer={handlePermanentDeleteCustomer} onRestoreDeal={handleRestoreDeal} onPermanentDeleteDeal={handlePermanentDeleteDeal} onRestoreTask={handleRestoreTask} onPermanentDeleteTask={handlePermanentDeleteTask} onRestoreAttachment={handleRestoreAttachment} onPermanentDeleteAttachment={handlePermanentDeleteAttachment} currentUser={currentUser} activityLogs={activityLogs} />} />
-            <Route path="/settings" element={ <SettingsPage currentUser={currentUser} users={users} onUpdateUserProfile={handleUpdateUserProfile} onUpdateUserRole={handleUpdateUserRole} onAddNewUser={handleAddNewUser} systemSettings={systemSettings} onSaveSystemSettings={handleSaveSystemSettings} customFieldDefinitions={customFieldDefinitions} onAddCustomFieldDefinition={handleAddCustomFieldDefinition} onUpdateCustomFieldDefinition={handleUpdateCustomFieldDefinition} onDeleteCustomFieldDefinition={handleDeleteCustomFieldDefinition} />} />
+            <Route path="/settings" element={ <SettingsPage currentUser={currentUser} users={users} onUpdateUserProfile={handleUpdateUserProfile} onUpdateUserRole={handleUpdateUserRole} onAddNewUser={handleAddNewUser} systemSettings={systemSettings} onSaveSystemSettings={handleSaveSystemSettings} customFieldDefinitions={customFieldDefinitions} onAddCustomFieldDefinition={handleAddCustomFieldDefinition} onUpdateCustomFieldDefinition={handleUpdateCustomFieldDefinition} onDeleteCustomFieldDefinition={handleDeleteCustomFieldDefinition} onResetData={handleResetData} />} />
           </Route>
         </Route>
         

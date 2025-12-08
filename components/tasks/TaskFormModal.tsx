@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Task, TaskStatus, Lead, Customer, Deal, User, CustomFieldDefinition } from '../../types';
-import CustomFieldRenderer from '../shared/CustomFieldRenderer'; // Import CustomFieldRenderer
+import CustomFieldRenderer from '../shared/CustomFieldRenderer';
+import { validateCustomField } from '../../utils/validationUtils';
 
 type RelatedToType = 'Lead' | 'Customer' | 'Deal' | 'General';
 
@@ -47,6 +49,8 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
   });
   const [selectedRelatedType, setSelectedRelatedType] = useState<RelatedToType>('General');
   const [isAssignedToEditable, setIsAssignedToEditable] = useState(true);
+  const [customFieldErrors, setCustomFieldErrors] = useState<Record<string, string>>({});
+
 
   useEffect(() => {
     if (initialData) {
@@ -76,6 +80,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
       setSelectedRelatedType('General');
       setIsAssignedToEditable(true); // Editable for new tasks
     }
+    setCustomFieldErrors({});
   }, [initialData, isOpen, currentUser]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -91,6 +96,13 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
             [fieldName]: value,
         }
     }));
+    if (customFieldErrors[fieldName]) {
+        setCustomFieldErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[fieldName];
+            return newErrors;
+        });
+    }
   };
 
   const handleRelatedTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -136,6 +148,21 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
       alert('Title, Due Date, and Status are required for a task.');
       return;
     }
+
+    const newCustomFieldErrors: Record<string, string> = {};
+    customFieldDefinitions.forEach(def => {
+        const value = formData.customFields?.[def.name];
+        const error = validateCustomField(value, def);
+        if (error) {
+            newCustomFieldErrors[def.name] = error;
+        }
+    });
+
+    if (Object.keys(newCustomFieldErrors).length > 0) {
+        setCustomFieldErrors(newCustomFieldErrors);
+        return;
+    }
+
     // Ensure relatedTo object is correctly structured
     const finalRelatedTo = selectedRelatedType === 'General' || !formData.relatedTo?.id
         ? { type: selectedRelatedType }
@@ -296,6 +323,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
                             definition={fieldDef}
                             value={formData.customFields?.[fieldDef.name] ?? ''}
                             onChange={handleCustomFieldChange}
+                            error={customFieldErrors[fieldDef.name]}
                         />
                     ))}
                 </div>

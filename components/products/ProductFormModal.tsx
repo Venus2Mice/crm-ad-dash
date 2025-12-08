@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Product, User, CustomFieldDefinition } from '../../types';
-import CustomFieldRenderer from '../shared/CustomFieldRenderer'; // Import CustomFieldRenderer
+import CustomFieldRenderer from '../shared/CustomFieldRenderer';
+import { validateCustomField } from '../../utils/validationUtils';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -44,6 +46,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     customFields: {},
   });
   const [errors, setErrors] = useState<FormErrors>({});
+  const [customFieldErrors, setCustomFieldErrors] = useState<Record<string, string>>({});
+
 
   useEffect(() => {
     if (initialData) {
@@ -66,6 +70,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       });
     }
     setErrors({}); // Reset errors when modal opens or initialData changes
+    setCustomFieldErrors({});
   }, [initialData, isOpen, defaultCurrency]);
 
   const validateForm = (): boolean => {
@@ -132,11 +137,33 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             [fieldName]: value,
         }
     }));
+    if (customFieldErrors[fieldName]) {
+        setCustomFieldErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[fieldName];
+            return newErrors;
+        });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
+    const isStandardFormValid = validateForm();
+
+    const newCustomFieldErrors: Record<string, string> = {};
+    customFieldDefinitions.forEach(def => {
+        const value = formData.customFields?.[def.name];
+        const error = validateCustomField(value, def);
+        if (error) {
+            newCustomFieldErrors[def.name] = error;
+        }
+    });
+
+    if (Object.keys(newCustomFieldErrors).length > 0) {
+        setCustomFieldErrors(newCustomFieldErrors);
+    }
+
+    if (isStandardFormValid && Object.keys(newCustomFieldErrors).length === 0) {
       onSave(initialData ? { ...formData, id: initialData.id } : formData);
     }
   };
@@ -213,6 +240,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                             definition={fieldDef}
                             value={formData.customFields?.[fieldDef.name] ?? ''}
                             onChange={handleCustomFieldChange}
+                            error={customFieldErrors[fieldDef.name]}
                         />
                     ))}
                 </div>

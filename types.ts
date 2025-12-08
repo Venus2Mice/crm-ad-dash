@@ -1,3 +1,6 @@
+
+import React from 'react';
+
 export interface StatsCardData {
   id: string;
   title: string;
@@ -40,7 +43,7 @@ export interface NavItem {
 // Custom Field Types
 export type CustomFieldEntityType = 'Lead' | 'Customer' | 'Deal' | 'Task' | 'Product';
 
-export type CustomFieldType = 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'TEXTAREA' | 'CHECKBOX';
+export type CustomFieldType = 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT' | 'TEXTAREA' | 'CHECKBOX' | 'EMAIL' | 'URL';
 
 export interface CustomFieldDefinition {
   id: string; // Unique ID for the definition

@@ -1,14 +1,15 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Product, User, CustomFieldDefinition } from '../types';
-import { PlusCircleIcon, PencilSquareIcon, CheckCircleIcon, XCircleIcon as ToggleOffIcon } from '../components/ui/Icon'; // Removed TrashIcon as products are toggled
+import { PlusCircleIcon, PencilSquareIcon, CheckCircleIcon, XCircleIcon as ToggleOffIcon } from '../components/ui/Icon';
 import ProductFormModal from '../components/products/ProductFormModal';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import Pagination, { ITEMS_PER_PAGE_OPTIONS } from '../components/ui/Pagination';
 import { canPerformAction } from '../utils/permissions';
 import { formatCurrency } from '../services/reportUtils';
-import { MagnifyingGlassIcon } from '../components/ui/Icon'; // Ensure MagnifyingGlassIcon is imported
+import { MagnifyingGlassIcon } from '../components/ui/Icon';
+import { useSortableData } from '../hooks/useSortableData';
+import SortIcon from '../components/ui/SortIcon';
 
 interface ProductsPageProps {
   products: Product[];
@@ -17,7 +18,7 @@ interface ProductsPageProps {
     customFields?: Record<string, any>; 
   }) => void;
   onToggleActiveState: (productId: string) => void;
-  onBulkToggleProductActiveState: (productIds: string[], activate: boolean) => void; // New prop
+  onBulkToggleProductActiveState: (productIds: string[], activate: boolean) => void; 
   currentUser: User | null;
   defaultCurrency: string;
   customFieldDefinitions: CustomFieldDefinition[]; 
@@ -27,7 +28,7 @@ const ProductsPage: React.FC<ProductsPageProps> = ({
   products,
   onSaveProduct,
   onToggleActiveState,
-  onBulkToggleProductActiveState, // Destructure new prop
+  onBulkToggleProductActiveState, 
   currentUser,
   defaultCurrency,
   customFieldDefinitions
@@ -82,12 +83,15 @@ const ProductsPage: React.FC<ProductsPageProps> = ({
     });
   }, [products, searchTerm, selectedCategory, selectedStatus]);
 
-  const totalProducts = filteredProducts.length;
+  // Sorting
+  const { items: sortedProducts, requestSort, sortConfig } = useSortableData<Product>(filteredProducts);
+
+  const totalProducts = sortedProducts.length;
   const totalPages = Math.ceil(totalProducts / itemsPerPage);
   const paginatedProducts = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredProducts.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredProducts, currentPage, itemsPerPage]);
+    return sortedProducts.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedProducts, currentPage, itemsPerPage]);
 
   const canCreateProducts = useMemo(() => canPerformAction(currentUser, 'CREATE', 'Product'), [currentUser]);
   const canUpdateProductsGlobal = useMemo(() => canPerformAction(currentUser, 'UPDATE', 'Product'), [currentUser]);
@@ -155,8 +159,6 @@ const ProductsPage: React.FC<ProductsPageProps> = ({
   const handleItemsPerPageChange = (size: number) => {
     setItemsPerPage(size);
     setCurrentPage(1);
-    // It's usually good practice to clear selection when items per page change
-    // as the displayed items will be different.
     setSelectedProductIds(new Set());
   };
 
@@ -208,6 +210,19 @@ const ProductsPage: React.FC<ProductsPageProps> = ({
     setIsBulkConfirmModalOpen(false);
     setBulkActionType(null);
   };
+
+  const renderSortableHeader = (label: string, sortKey: keyof Product, hiddenClasses: string = "") => (
+    <th 
+      scope="col" 
+      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group select-none ${hiddenClasses}`}
+      onClick={() => requestSort(sortKey)}
+    >
+      <div className="flex items-center">
+        {label}
+        <SortIcon columnKey={sortKey as string} sortConfig={sortConfig} />
+      </div>
+    </th>
+  );
 
 
   return (
@@ -325,11 +340,11 @@ const ProductsPage: React.FC<ProductsPageProps> = ({
                         aria-label="Select all displayed products"
                       />
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Category</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">SKU</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    {renderSortableHeader("Name", "name")}
+                    {renderSortableHeader("Category", "category", "hidden md:table-cell")}
+                    {renderSortableHeader("Price", "price")}
+                    {renderSortableHeader("SKU", "sku", "hidden sm:table-cell")}
+                    {renderSortableHeader("Status", "isActive")}
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
                 </thead>

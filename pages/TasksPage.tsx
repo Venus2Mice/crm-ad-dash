@@ -5,7 +5,9 @@ import { Task, TaskStatus, Lead, Customer, Deal, User, CustomFieldDefinition } f
 import { PlusCircleIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon } from '../components/ui/Icon';
 import TaskFormModal from '../components/tasks/TaskFormModal';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
-import Pagination, { ITEMS_PER_PAGE_OPTIONS } from '../components/ui/Pagination'; // Import Pagination
+import Pagination, { ITEMS_PER_PAGE_OPTIONS } from '../components/ui/Pagination';
+import { useSortableData } from '../hooks/useSortableData';
+import SortIcon from '../components/ui/SortIcon';
 
 const TASK_PRIORITY_OPTIONS_FILTER: { value: Task['priority'] | '', label: string }[] = [
     { value: '', label: 'All Priorities' },
@@ -105,13 +107,16 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, leads, customers, deals, o
     });
   }, [tasks, searchTerm, selectedStatus, selectedPriority, selectedAssignedTo, selectedRelatedType, selectedCreatedBy]);
 
+  // Sorting
+  const { items: sortedTasks, requestSort, sortConfig } = useSortableData<Task>(filteredTasks);
+
   // Paginated tasks
-  const totalTasks = filteredTasks.length;
+  const totalTasks = sortedTasks.length;
   const totalPages = Math.ceil(totalTasks / itemsPerPage);
   const paginatedTasks = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredTasks.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredTasks, currentPage, itemsPerPage]);
+    return sortedTasks.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedTasks, currentPage, itemsPerPage]);
 
 
   const handleAddNewTask = () => {
@@ -183,6 +188,19 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, leads, customers, deals, o
     setItemsPerPage(size);
     setCurrentPage(1);
   };
+
+  const renderSortableHeader = (label: string, sortKey: keyof Task, hiddenClasses: string = "") => (
+    <th 
+      scope="col" 
+      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group select-none ${hiddenClasses}`}
+      onClick={() => requestSort(sortKey)}
+    >
+      <div className="flex items-center">
+        {label}
+        <SortIcon columnKey={sortKey as string} sortConfig={sortConfig} />
+      </div>
+    </th>
+  );
 
   return (
     <div className="space-y-6">
@@ -303,11 +321,11 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, leads, customers, deals, o
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                 <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Due Date</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Priority</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Assigned To</th>
+                    {renderSortableHeader("Title", "title")}
+                    {renderSortableHeader("Status", "status")}
+                    {renderSortableHeader("Due Date", "dueDate", "hidden sm:table-cell")}
+                    {renderSortableHeader("Priority", "priority", "hidden md:table-cell")}
+                    {renderSortableHeader("Assigned To", "assignedTo", "hidden md:table-cell")}
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Created By</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Related To</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -366,7 +384,7 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, leads, customers, deals, o
             customers={customers.filter(c => !c.isDeleted)}
             deals={deals.filter(d => !d.isDeleted)}
             taskStatuses={TASK_STATUS_OPTIONS}
-            taskPriorities={TASK_PRIORITY_OPTIONS_FORM}
+            taskPriorities={['Low', 'Medium', 'High']}
             currentUser={currentUser}
             customFieldDefinitions={customFieldDefinitions} 
         />
