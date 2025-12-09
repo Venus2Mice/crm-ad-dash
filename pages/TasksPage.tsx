@@ -326,57 +326,116 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, leads, customers, deals, o
 
 
       <div className="bg-white p-0 sm:p-6 rounded-lg shadow">
-        <div className="overflow-x-auto">
-            {paginatedTasks.length === 0 ? (
+        {paginatedTasks.length === 0 ? (
             <p className="text-medium-text text-center py-8 px-4">
                 {tasks.filter(t => !t.isDeleted).length === 0 ? "No active tasks found. Add a new task to stay organized!" : "No tasks match your current filters."}
             </p>
-            ) : (
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                <tr>
-                    {renderSortableHeader("Title", "title")}
-                    {renderSortableHeader("Status", "status")}
-                    {renderSortableHeader("Priority", "priority")}
-                    {renderSortableHeader("Due Date", "dueDate", "hidden sm:table-cell")}
-                    {renderSortableHeader("Assigned To", "assignedTo", "hidden md:table-cell")}
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Created By</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Related To</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedTasks.map((task) => (
-                    <tr key={task.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text">{task.title}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(task.status)}`}>
-                        {task.status}
-                        </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
-                        {task.priority || 'Medium'}
-                        </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden sm:table-cell">{task.dueDate}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden md:table-cell">{task.assignedTo || 'Unassigned'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">{task.createdBy?.name || 'System'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">{getRelatedToText(task)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        <button onClick={() => handleEditTask(task)} className="text-primary hover:text-primary-dark p-1" aria-label={`Edit ${task.title}`}>
-                        <PencilSquareIcon className="h-5 w-5" />
-                        </button>
-                        <button onClick={() => handleDeleteTaskWithConfirmation(task)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete ${task.title}`}>
-                        <TrashIcon className="h-5 w-5" />
-                        </button>
-                    </td>
-                    </tr>
+        ) : (
+            <>
+            {/* Mobile View: Cards */}
+            <div className="sm:hidden space-y-4 p-4">
+                {paginatedTasks.map(task => (
+                    <div key={task.id} className="bg-white p-4 rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start mb-2">
+                            <h3 className="text-lg font-semibold text-dark-text leading-tight">{task.title}</h3>
+                            <div className="flex space-x-1 flex-shrink-0">
+                                <button 
+                                    onClick={() => handleEditTask(task)} 
+                                    className="text-primary hover:text-primary-dark p-1.5 bg-blue-50 rounded-full"
+                                    aria-label={`Edit ${task.title}`}
+                                >
+                                    <PencilSquareIcon className="h-4 w-4" />
+                                </button>
+                                <button 
+                                    onClick={() => handleDeleteTaskWithConfirmation(task)} 
+                                    className="text-red-600 hover:text-red-800 p-1.5 bg-red-50 rounded-full"
+                                    aria-label={`Delete ${task.title}`}
+                                >
+                                    <TrashIcon className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(task.status)}`}>
+                                {task.status}
+                            </span>
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
+                                {task.priority || 'Medium'}
+                            </span>
+                        </div>
+
+                        <div className="space-y-2 text-sm text-gray-600">
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                                <span className="font-medium text-gray-500">Due Date:</span>
+                                <span>{task.dueDate}</span>
+                            </div>
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                                <span className="font-medium text-gray-500">Assigned To:</span>
+                                <span>{task.assignedTo || 'Unassigned'}</span>
+                            </div>
+                            {task.relatedTo && (
+                                <div className="pt-1">
+                                    <span className="font-medium text-gray-500 block mb-1">Related To:</span>
+                                    <span className="text-gray-700 bg-gray-50 px-2 py-1 rounded block truncate">
+                                        {getRelatedToText(task)}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 ))}
-                </tbody>
-            </table>
-            )}
-        </div>
+            </div>
+
+            {/* Desktop View: Table */}
+            <div className="hidden sm:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                    <tr>
+                        {renderSortableHeader("Title", "title")}
+                        {renderSortableHeader("Status", "status")}
+                        {renderSortableHeader("Priority", "priority")}
+                        {renderSortableHeader("Due Date", "dueDate", "hidden sm:table-cell")}
+                        {renderSortableHeader("Assigned To", "assignedTo", "hidden md:table-cell")}
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Created By</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Related To</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                    {paginatedTasks.map((task) => (
+                        <tr key={task.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text">{task.title}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(task.status)}`}>
+                            {task.status}
+                            </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
+                            {task.priority || 'Medium'}
+                            </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden sm:table-cell">{task.dueDate}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden md:table-cell">{task.assignedTo || 'Unassigned'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">{task.createdBy?.name || 'System'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">{getRelatedToText(task)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                            <button onClick={() => handleEditTask(task)} className="text-primary hover:text-primary-dark p-1" aria-label={`Edit ${task.title}`}>
+                            <PencilSquareIcon className="h-5 w-5" />
+                            </button>
+                            <button onClick={() => handleDeleteTaskWithConfirmation(task)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete ${task.title}`}>
+                            <TrashIcon className="h-5 w-5" />
+                            </button>
+                        </td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+            </div>
+            </>
+        )}
+        
         {totalPages > 0 && (
           <Pagination
             currentPage={currentPage}

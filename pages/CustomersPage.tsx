@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Customer, EntityActivityLog, User, EntityActivityType, CustomFieldDefinition } from '../types';
@@ -215,59 +216,126 @@ const CustomersPage: React.FC<CustomersPageProps> = ({ customers, onSaveCustomer
       </div>
 
       <div className="bg-white p-0 sm:p-6 rounded-lg shadow">
-        <div className="overflow-x-auto">
-            {paginatedCustomers.length === 0 ? (
+        {paginatedCustomers.length === 0 ? (
             <p className="text-medium-text text-center py-8 px-4">
                 {customers.filter(c => !c.isDeleted).length === 0 ? "No active customers found. Add a new customer or convert leads!" : "No customers match your current filters."}
             </p>
-            ) : (
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                <tr>
-                    {renderSortableHeader("Name", "name")}
-                    {renderSortableHeader("Email", "email")}
-                    {renderSortableHeader("Company", "company", "hidden md:table-cell")}
-                    {renderSortableHeader("Phone", "phone", "hidden lg:table-cell")}
-                    {renderSortableHeader("Total Revenue", "totalRevenue", "hidden lg:table-cell")}
-                    {renderSortableHeader("Account Manager", "accountManager", "hidden md:table-cell")}
-                    {renderSortableHeader("Created At", "createdAt", "hidden xl:table-cell")}
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedCustomers.map((customer) => (
-                    <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text">{customer.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text">{customer.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden md:table-cell">{customer.company || 'N/A'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">{customer.phone || 'N/A'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">
-                        {customer.totalRevenue ? `$${customer.totalRevenue.toLocaleString()}` : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden md:table-cell">{customer.accountManager || 'Unassigned'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden xl:table-cell">{customer.createdAt}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 flex items-center">
-                        <button 
-                            onClick={() => handleEmailCustomer(customer)} 
-                            className="text-blue-600 hover:text-blue-800 p-1" 
-                            aria-label={`Email ${customer.name}`}
-                            title="Opens your default email client."
-                        >
-                        <EnvelopeIcon className="h-5 w-5" />
-                        </button>
-                        <button onClick={() => handleEditCustomer(customer)} className="text-primary hover:text-primary-dark p-1" aria-label={`Edit ${customer.name}`}>
-                        <PencilSquareIcon className="h-5 w-5" />
-                        </button>
-                        <button onClick={() => handleDeleteCustomerWithConfirmation(customer)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete ${customer.name}`}>
-                        <TrashIcon className="h-5 w-5" />
-                        </button>
-                    </td>
-                    </tr>
+        ) : (
+            <>
+            {/* Mobile View: Cards */}
+            <div className="sm:hidden space-y-4 p-4">
+                {paginatedCustomers.map(customer => (
+                    <div key={customer.id} className="bg-white p-4 rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start mb-3">
+                            <div>
+                                <h3 className="text-lg font-semibold text-dark-text">{customer.name}</h3>
+                                {customer.company && <p className="text-sm text-gray-500 font-medium">{customer.company}</p>}
+                            </div>
+                            <div className="flex space-x-2">
+                                <button 
+                                    onClick={() => handleEmailCustomer(customer)} 
+                                    className="text-blue-600 hover:text-blue-800 p-1.5 bg-blue-50 rounded-full"
+                                    aria-label={`Email ${customer.name}`}
+                                >
+                                    <EnvelopeIcon className="h-4 w-4" />
+                                </button>
+                                <button 
+                                    onClick={() => handleEditCustomer(customer)} 
+                                    className="text-primary hover:text-primary-dark p-1.5 bg-blue-50 rounded-full"
+                                    aria-label={`Edit ${customer.name}`}
+                                >
+                                    <PencilSquareIcon className="h-4 w-4" />
+                                </button>
+                                <button 
+                                    onClick={() => handleDeleteCustomerWithConfirmation(customer)} 
+                                    className="text-red-600 hover:text-red-800 p-1.5 bg-red-50 rounded-full"
+                                    aria-label={`Delete ${customer.name}`}
+                                >
+                                    <TrashIcon className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-2 text-sm text-gray-600">
+                            <div className="flex items-center">
+                                <span className="font-medium w-16 text-gray-500">Email:</span>
+                                <span className="truncate">{customer.email}</span>
+                            </div>
+                            {customer.phone && (
+                                <div className="flex items-center">
+                                    <span className="font-medium w-16 text-gray-500">Phone:</span>
+                                    <span>{customer.phone}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-xs">
+                            <div className="flex flex-col">
+                                <span className="text-gray-400 mb-0.5">Total Revenue</span>
+                                <span className="font-semibold text-green-600 text-sm">
+                                    {customer.totalRevenue ? `$${customer.totalRevenue.toLocaleString()}` : 'N/A'}
+                                </span>
+                            </div>
+                            <div className="flex flex-col text-right">
+                                <span className="text-gray-400 mb-0.5">Manager</span>
+                                <span className="font-medium text-gray-700">{customer.accountManager || 'Unassigned'}</span>
+                            </div>
+                        </div>
+                    </div>
                 ))}
-                </tbody>
-            </table>
-            )}
-        </div>
+            </div>
+
+            {/* Desktop View: Table */}
+            <div className="hidden sm:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                    <tr>
+                        {renderSortableHeader("Name", "name")}
+                        {renderSortableHeader("Email", "email")}
+                        {renderSortableHeader("Company", "company", "hidden md:table-cell")}
+                        {renderSortableHeader("Phone", "phone", "hidden lg:table-cell")}
+                        {renderSortableHeader("Total Revenue", "totalRevenue", "hidden lg:table-cell")}
+                        {renderSortableHeader("Account Manager", "accountManager", "hidden md:table-cell")}
+                        {renderSortableHeader("Created At", "createdAt", "hidden xl:table-cell")}
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                    {paginatedCustomers.map((customer) => (
+                        <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text">{customer.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text">{customer.email}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden md:table-cell">{customer.company || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">{customer.phone || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">
+                            {customer.totalRevenue ? `$${customer.totalRevenue.toLocaleString()}` : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden md:table-cell">{customer.accountManager || 'Unassigned'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden xl:table-cell">{customer.createdAt}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 flex items-center">
+                            <button 
+                                onClick={() => handleEmailCustomer(customer)} 
+                                className="text-blue-600 hover:text-blue-800 p-1" 
+                                aria-label={`Email ${customer.name}`}
+                                title="Opens your default email client."
+                            >
+                            <EnvelopeIcon className="h-5 w-5" />
+                            </button>
+                            <button onClick={() => handleEditCustomer(customer)} className="text-primary hover:text-primary-dark p-1" aria-label={`Edit ${customer.name}`}>
+                            <PencilSquareIcon className="h-5 w-5" />
+                            </button>
+                            <button onClick={() => handleDeleteCustomerWithConfirmation(customer)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete ${customer.name}`}>
+                            <TrashIcon className="h-5 w-5" />
+                            </button>
+                        </td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+            </div>
+            </>
+        )}
+        
         {totalPages > 0 && (
           <Pagination
             currentPage={currentPage}
