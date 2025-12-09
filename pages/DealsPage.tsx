@@ -1,9 +1,11 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getStatusColor, DEAL_STAGE_OPTIONS } from '../constants';
 import { Deal, Customer, Lead, DealStage, EntityActivityLog, User, EntityActivityType, Product, CustomFieldDefinition, Task } from '../types';
-import { PlusCircleIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon } from '../components/ui/Icon';
+import { PlusCircleIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, EyeIcon } from '../components/ui/Icon';
 import DealFormModal from '../components/deals/DealFormModal';
+import DealDetailModal from '../components/deals/DealDetailModal';
 import ConfirmationModal from '../components/ui/ConfirmationModal'; 
 import Pagination, { ITEMS_PER_PAGE_OPTIONS } from '../components/ui/Pagination';
 import { useSortableData } from '../hooks/useSortableData';
@@ -38,6 +40,10 @@ const DealsPage: React.FC<DealsPageProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
+  
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [viewingDeal, setViewingDeal] = useState<Deal | null>(null);
+
   const location = useLocation();
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -103,6 +109,11 @@ const DealsPage: React.FC<DealsPageProps> = ({
   const handleEditDeal = (deal: Deal) => {
     setEditingDeal(deal);
     setIsModalOpen(true);
+  };
+
+  const handleViewDeal = (deal: Deal) => {
+    setViewingDeal(deal);
+    setIsDetailModalOpen(true);
   };
   
   const openConfirmationModal = (
@@ -197,55 +208,59 @@ const DealsPage: React.FC<DealsPageProps> = ({
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow space-y-4 md:space-y-0 md:flex md:items-end md:space-x-4">
-        <div className="flex-grow md:w-1/3">
-          <label htmlFor="searchTermDeals" className="block text-sm font-medium text-gray-700 mb-1">Search Deals</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <div className="w-full">
+            <label htmlFor="searchTermDeals" className="block text-sm font-medium text-gray-700 mb-1">Search Deals</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                id="searchTermDeals"
+                placeholder="Search by deal name..."
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+              />
             </div>
-            <input
-              type="text"
-              id="searchTermDeals"
-              placeholder="Search by deal name..."
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-            />
+          </div>
+          <div className="w-full">
+            <label htmlFor="stageFilter" className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
+            <select
+              id="stageFilter"
+              value={selectedStage}
+              onChange={(e) => { setSelectedStage(e.target.value as DealStage | ''); setCurrentPage(1); }}
+              className="block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+            >
+              {stageOptions.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="w-full">
+            <label htmlFor="ownerFilter" className="block text-sm font-medium text-gray-700 mb-1">Owner</label>
+            <select
+              id="ownerFilter"
+              value={selectedOwner}
+              onChange={(e) => { setSelectedOwner(e.target.value); setCurrentPage(1); }}
+              className="block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+            >
+              {ownerOptions.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="w-full">
+            <button
+              onClick={resetFilters}
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-150 h-[38px] md:h-[38px]"
+            >
+              Reset Filters
+            </button>
           </div>
         </div>
-        <div className="flex-grow md:w-1/4">
-          <label htmlFor="stageFilter" className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
-          <select
-            id="stageFilter"
-            value={selectedStage}
-            onChange={(e) => { setSelectedStage(e.target.value as DealStage | ''); setCurrentPage(1); }}
-            className="block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-          >
-            {stageOptions.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex-grow md:w-1/4">
-          <label htmlFor="ownerFilter" className="block text-sm font-medium text-gray-700 mb-1">Owner</label>
-          <select
-            id="ownerFilter"
-            value={selectedOwner}
-            onChange={(e) => { setSelectedOwner(e.target.value); setCurrentPage(1); }}
-            className="block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-          >
-            {ownerOptions.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
-        <button
-          onClick={resetFilters}
-          className="w-full md:w-auto bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-150 h-10"
-        >
-          Reset Filters
-        </button>
       </div>
 
       <div className="bg-white p-0 sm:p-6 rounded-lg shadow">
@@ -282,7 +297,15 @@ const DealsPage: React.FC<DealsPageProps> = ({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden md:table-cell">{deal.closeDate}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden md:table-cell">{deal.owner}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 flex items-center">
+                        <button 
+                            onClick={() => handleViewDeal(deal)} 
+                            className="text-blue-600 hover:text-blue-800 p-1" 
+                            aria-label={`View ${deal.dealName}`}
+                            title="View Deal Details"
+                        >
+                            <EyeIcon className="h-5 w-5" />
+                        </button>
                         <button onClick={() => handleEditDeal(deal)} className="text-primary hover:text-primary-dark p-1" aria-label={`Edit ${deal.dealName}`}>
                         <PencilSquareIcon className="h-5 w-5" />
                         </button>
@@ -328,6 +351,21 @@ const DealsPage: React.FC<DealsPageProps> = ({
           customFieldDefinitions={customFieldDefinitions}
           onSaveTask={onSaveTask}
           tasks={tasks}
+        />
+      )}
+      {isDetailModalOpen && viewingDeal && (
+        <DealDetailModal
+            isOpen={isDetailModalOpen}
+            onClose={() => {
+                setIsDetailModalOpen(false);
+                setViewingDeal(null);
+            }}
+            deal={viewingDeal}
+            customers={customers}
+            leads={leads}
+            activityLogs={activityLogs}
+            customFieldDefinitions={customFieldDefinitions}
+            defaultCurrency={defaultCurrency}
         />
       )}
       {isConfirmModalOpen && itemToDeleteDetails && confirmActionHandler && (

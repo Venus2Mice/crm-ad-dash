@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
@@ -12,7 +12,7 @@ interface DashboardLayoutProps {
   notifications: NotificationItem[];
   onMarkNotificationAsRead: (id: string) => void;
   onMarkAllNotificationsAsRead: () => void;
-  appName: string; // Added
+  appName: string; 
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ 
@@ -22,12 +22,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     notifications,
     onMarkNotificationAsRead,
     onMarkAllNotificationsAsRead,
-    appName // Destructure
+    appName
 }) => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
-    <div className="flex h-screen bg-light-bg">
-      <Sidebar appName={appName} /> {/* Pass appName to Sidebar */}
-      <div className="flex-1 flex flex-col ml-64"> {/* ml-64 to offset sidebar width */}
+    <div className="flex h-screen bg-light-bg overflow-hidden">
+      <Sidebar 
+        appName={appName} 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+      />
+      <div className="flex-1 flex flex-col w-full lg:ml-64 transition-all duration-300">
         <Header 
             performGlobalSearch={performGlobalSearch} 
             currentUser={currentUser} 
@@ -35,9 +41,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             notifications={notifications}
             onMarkNotificationAsRead={onMarkNotificationAsRead}
             onMarkAllNotificationsAsRead={onMarkAllNotificationsAsRead}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
-        <main className="flex-1 p-6 overflow-y-auto">
-          <Outlet /> {/* This is where routed components will be rendered */}
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
+          <Outlet />
         </main>
       </div>
     </div>

@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
-import { MagnifyingGlassIcon, BellIcon, ChevronDownIcon, UserPlusIcon, BriefcaseIcon, FunnelIcon, ClipboardDocumentListIcon, ArrowRightOnRectangleIcon } from '../ui/Icon';
+import { MagnifyingGlassIcon, BellIcon, ChevronDownIcon, UserPlusIcon, BriefcaseIcon, FunnelIcon, ClipboardDocumentListIcon, ArrowRightOnRectangleIcon, Bars3Icon } from '../ui/Icon';
 import { GlobalSearchResult, User, NotificationItem } from '../../types';
 import { NAVIGATION_ITEMS } from '../../constants';
-import NotificationDropdown from '../notifications/NotificationDropdown'; // Import NotificationDropdown
+import NotificationDropdown from '../notifications/NotificationDropdown';
 
 interface HeaderProps {
   performGlobalSearch: (term: string) => GlobalSearchResult[];
@@ -13,6 +13,7 @@ interface HeaderProps {
   notifications: NotificationItem[];
   onMarkNotificationAsRead: (id: string) => void;
   onMarkAllNotificationsAsRead: () => void;
+  onToggleSidebar: () => void; 
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -21,7 +22,8 @@ const Header: React.FC<HeaderProps> = ({
     onLogout,
     notifications,
     onMarkNotificationAsRead,
-    onMarkAllNotificationsAsRead
+    onMarkAllNotificationsAsRead,
+    onToggleSidebar
 }) => {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
@@ -112,12 +114,10 @@ const Header: React.FC<HeaderProps> = ({
     if (notification.link) {
       navigate(notification.link);
     }
-    // setIsNotificationDropdownOpen(false); // Optional: close dropdown on item click
   };
   
   const handleMarkAllReadAndClose = () => {
     onMarkAllNotificationsAsRead();
-    // setIsNotificationDropdownOpen(false); // Keep open to see changes, or close
   }
 
   const getResultIcon = (type: GlobalSearchResult['type']) => {
@@ -132,11 +132,22 @@ const Header: React.FC<HeaderProps> = ({
 
 
   return (
-    <header className="bg-white shadow-sm p-4 sticky top-0 z-30">
-      <div className="container mx-auto flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-dark-text">{pageTitle}</h2>
+    <header className="bg-white shadow-sm z-30 w-full">
+      <div className="px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+            {/* Hamburger Menu for Mobile */}
+            <button
+                type="button"
+                className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary lg:hidden"
+                onClick={onToggleSidebar}
+                aria-label="Open sidebar"
+            >
+                <Bars3Icon className="h-6 w-6" />
+            </button>
+            <h2 className="text-2xl font-bold text-gray-900 truncate tracking-tight">{pageTitle}</h2>
+        </div>
         
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 sm:space-x-4">
           {currentUser && (
             <div className="relative hidden md:block" ref={searchContainerRef}>
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -148,10 +159,10 @@ const Header: React.FC<HeaderProps> = ({
                 value={globalSearchTerm}
                 onChange={(e) => setGlobalSearchTerm(e.target.value)}
                 onFocus={() => globalSearchTerm && globalSearchResults.length > 0 && setIsGlobalResultsOpen(true)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition-all duration-200 ease-in-out w-64 focus:w-80"
               />
               {isGlobalResultsOpen && globalSearchResults.length > 0 && (
-                <div className="absolute mt-1 w-full md:w-96 max-h-80 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg z-40">
+                <div className="absolute mt-1 w-full max-h-80 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg z-40 right-0">
                   <ul>
                     {globalSearchResults.map(result => (
                       <li key={result.id}>
@@ -171,7 +182,7 @@ const Header: React.FC<HeaderProps> = ({
                 </div>
               )}
                {isGlobalResultsOpen && globalSearchTerm && globalSearchResults.length === 0 && (
-                   <div className="absolute mt-1 w-full md:w-96 bg-white border border-gray-200 rounded-md shadow-lg z-40 p-4 text-center">
+                   <div className="absolute mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg z-40 p-4 text-center right-0">
                       <p className="text-sm text-gray-500">No results found for "{globalSearchTerm}"</p>
                    </div>
                )}
@@ -182,12 +193,12 @@ const Header: React.FC<HeaderProps> = ({
              <div className="relative" ref={notificationDropdownRef}>
                 <button 
                     onClick={() => setIsNotificationDropdownOpen(!isNotificationDropdownOpen)}
-                    className="relative p-2 rounded-full text-gray-500 hover:text-dark-text hover:bg-gray-100 focus:outline-none focus:bg-gray-100"  
+                    className="relative p-2 rounded-full text-gray-500 hover:text-primary hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition-colors"  
                     aria-label="Notifications"
                 >
                     <BellIcon className="h-6 w-6" />
                     {unreadNotificationCount > 0 && (
-                        <span className="absolute top-0 right-0 block h-4 w-4 transform -translate-y-1/2 translate-x-1/2 rounded-full ring-2 ring-white bg-red-500 text-white text-xs flex items-center justify-center">
+                        <span className="absolute top-0 right-0 block h-4 w-4 transform -translate-y-1/2 translate-x-1/2 rounded-full ring-2 ring-white bg-red-500 text-white text-xs flex items-center justify-center font-bold">
                         {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
                         </span>
                     )}
@@ -207,7 +218,7 @@ const Header: React.FC<HeaderProps> = ({
             <div className="relative" ref={profileDropdownRef}>
               <button 
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                className="flex items-center space-x-2 p-1 pr-2 rounded-md hover:bg-gray-100 focus:outline-none focus:bg-gray-100"
+                className="flex items-center space-x-2 p-1.5 pr-3 rounded-full hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition-colors border border-transparent hover:border-gray-200"
                 aria-expanded={isProfileDropdownOpen}
                 aria-haspopup="true"
                 aria-label="User menu"
@@ -215,19 +226,23 @@ const Header: React.FC<HeaderProps> = ({
                 <img 
                   src={currentUser.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random&color=fff`}
                   alt="User Avatar" 
-                  className="h-8 w-8 rounded-full"
+                  className="h-8 w-8 rounded-full border border-gray-200"
                 />
-                <span className="hidden sm:inline text-sm font-medium text-dark-text">{currentUser.name}</span>
-                <ChevronDownIcon className={`h-4 w-4 text-gray-500 transition-transform ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
+                <span className="hidden sm:inline text-sm font-semibold text-gray-700">{currentUser.name}</span>
+                <ChevronDownIcon className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
               {isProfileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 ring-1 ring-black ring-opacity-5">
-                  <Link to="/settings" onClick={() => setIsProfileDropdownOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile (Settings)</Link>
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-50 ring-1 ring-black ring-opacity-5 animate-fadeIn">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm text-gray-900 font-medium">Signed in as</p>
+                    <p className="text-sm text-gray-500 truncate">{currentUser.email}</p>
+                  </div>
+                  <Link to="/settings" onClick={() => setIsProfileDropdownOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Profile Settings</Link>
                   <button 
                     onClick={handleLogoutClick} 
-                    className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                   >
-                    <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2 text-medium-text" />
+                    <ArrowRightOnRectangleIcon className="h-4 w-4 mr-2" />
                     Sign out
                   </button>
                 </div>

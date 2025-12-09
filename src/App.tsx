@@ -637,10 +637,9 @@ const App: React.FC = () => {
     if (dueDateDay.getTime() === todayDay.getTime()) { remind = true; reminderMessage = `Task "${task.title}" is due today.`; } 
     else if (dueDateDay.getTime() === tomorrowDay.getTime()) { remind = true; reminderMessage = `Task "${task.title}" is due tomorrow.`; }
     if (remind) {
-        // Use addNotification logic which handles simple deduplication (within 5s)
-        // For a more persistent check, we could inspect existing notifications, but simple trigger on save is usually desired for "remind me now" effect or updates.
-        // Given the requirement "When saving... if due today/tomorrow... send notification", we just trigger it.
-        addNotification( assignedUser.id, NotificationType.REMINDER, `Task Reminder: ${task.title}`, reminderMessage, `/tasks?search=${encodeURIComponent(task.title)}`); 
+        const existingNotificationsForThisUser = JSON.parse(localStorage.getItem(`notifications_${assignedUser.id}`) || '[]') as NotificationItem[];
+        const recentReminders = existingNotificationsForThisUser.filter( n => n.type === NotificationType.REMINDER && n.link === `/tasks?search=${encodeURIComponent(task.title)}` && (new Date(n.timestamp).getTime() > new Date().getTime() - (60 * 60 * 1000)));
+        if (recentReminders.length === 0) { addNotification( assignedUser.id, NotificationType.REMINDER, `Task Reminder: ${task.title}`, reminderMessage, `/tasks?search=${encodeURIComponent(task.title)}`); }
     }
   };
 

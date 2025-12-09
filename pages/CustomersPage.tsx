@@ -177,42 +177,46 @@ const CustomersPage: React.FC<CustomersPageProps> = ({ customers, onSaveCustomer
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow space-y-4 md:space-y-0 md:flex md:items-end md:space-x-4">
-        <div className="flex-grow md:w-1/2">
-          <label htmlFor="searchTermCustomers" className="block text-sm font-medium text-gray-700 mb-1">Search Customers</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div className="col-span-1 md:col-span-2">
+            <label htmlFor="searchTermCustomers" className="block text-sm font-medium text-gray-700 mb-1">Search Customers</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                id="searchTermCustomers"
+                placeholder="Search by name, email..."
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+              />
             </div>
-            <input
-              type="text"
-              id="searchTermCustomers"
-              placeholder="Search by name, email, company..."
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-            />
+          </div>
+          <div className="col-span-1">
+            <label htmlFor="accountManagerFilter" className="block text-sm font-medium text-gray-700 mb-1">Account Manager</label>
+            <select
+              id="accountManagerFilter"
+              value={selectedAccountManager}
+              onChange={(e) => { setSelectedAccountManager(e.target.value); setCurrentPage(1); }}
+              className="block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+            >
+              {accountManagerOptions.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="col-span-1">
+            <button
+              onClick={resetFilters}
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-150 h-[38px] md:h-[38px]"
+            >
+              Reset Filters
+            </button>
           </div>
         </div>
-        <div className="flex-grow md:w-1/3">
-          <label htmlFor="accountManagerFilter" className="block text-sm font-medium text-gray-700 mb-1">Account Manager</label>
-          <select
-            id="accountManagerFilter"
-            value={selectedAccountManager}
-            onChange={(e) => { setSelectedAccountManager(e.target.value); setCurrentPage(1); }}
-            className="block w-full p-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-          >
-            {accountManagerOptions.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
-        <button
-          onClick={resetFilters}
-          className="w-full md:w-auto bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-150 h-10"
-        >
-          Reset Filters
-        </button>
       </div>
 
       <div className="bg-white p-0 sm:p-6 rounded-lg shadow">

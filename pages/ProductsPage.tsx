@@ -1,8 +1,10 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Product, User, CustomFieldDefinition } from '../types';
-import { PlusCircleIcon, PencilSquareIcon, CheckCircleIcon, XCircleIcon as ToggleOffIcon } from '../components/ui/Icon';
+import { Product, User, CustomFieldDefinition, Deal } from '../types';
+import { PlusCircleIcon, PencilSquareIcon, CheckCircleIcon, XCircleIcon as ToggleOffIcon, EyeIcon } from '../components/ui/Icon';
 import ProductFormModal from '../components/products/ProductFormModal';
+import ProductDetailModal from '../components/products/ProductDetailModal';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import Pagination, { ITEMS_PER_PAGE_OPTIONS } from '../components/ui/Pagination';
 import { canPerformAction } from '../utils/permissions';
@@ -21,7 +23,8 @@ interface ProductsPageProps {
   onBulkToggleProductActiveState: (productIds: string[], activate: boolean) => void; 
   currentUser: User | null;
   defaultCurrency: string;
-  customFieldDefinitions: CustomFieldDefinition[]; 
+  customFieldDefinitions: CustomFieldDefinition[];
+  deals: Deal[]; // Added deals prop
 }
 
 const ProductsPage: React.FC<ProductsPageProps> = ({
@@ -31,10 +34,15 @@ const ProductsPage: React.FC<ProductsPageProps> = ({
   onBulkToggleProductActiveState, 
   currentUser,
   defaultCurrency,
-  customFieldDefinitions
+  customFieldDefinitions,
+  deals
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
+
   const location = useLocation();
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -112,6 +120,18 @@ const ProductsPage: React.FC<ProductsPageProps> = ({
     }
     setEditingProduct(product);
     setIsModalOpen(true);
+  };
+
+  const handleViewProduct = (product: Product) => {
+    setViewingProduct(product);
+    setIsDetailModalOpen(true);
+  };
+
+  const getLinkedDeals = (productId: string) => {
+    return deals.filter(deal => 
+        !deal.isDeleted && 
+        deal.lineItems?.some(item => item.productId === productId)
+    );
   };
 
   const openConfirmationModal = (
@@ -372,11 +392,20 @@ const ProductsPage: React.FC<ProductsPageProps> = ({
                             </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 flex items-center">
+                            <button
+                                onClick={() => handleViewProduct(product)}
+                                className="text-blue-600 hover:text-blue-800 p-1"
+                                aria-label={`View details for ${product.name}`}
+                                title="View Details"
+                            >
+                                <EyeIcon className="h-5 w-5" />
+                            </button>
                             <button 
                                 onClick={() => handleEditProduct(product)} 
                                 disabled={!canEditCurrent}
                                 className="text-primary hover:text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed p-1" 
                                 aria-label={`Edit ${product.name}`}
+                                title="Edit Product"
                             >
                                 <PencilSquareIcon className="h-5 w-5" />
                             </button>
@@ -420,6 +449,19 @@ const ProductsPage: React.FC<ProductsPageProps> = ({
           currentUser={currentUser}
           defaultCurrency={defaultCurrency}
           customFieldDefinitions={customFieldDefinitions} 
+        />
+      )}
+      {isDetailModalOpen && viewingProduct && (
+        <ProductDetailModal
+            isOpen={isDetailModalOpen}
+            onClose={() => {
+                setIsDetailModalOpen(false);
+                setViewingProduct(null);
+            }}
+            product={viewingProduct}
+            linkedDeals={getLinkedDeals(viewingProduct.id)}
+            defaultCurrency={defaultCurrency}
+            customFieldDefinitions={customFieldDefinitions}
         />
       )}
       {isConfirmModalOpen && itemToToggleDetails && confirmActionHandler && (

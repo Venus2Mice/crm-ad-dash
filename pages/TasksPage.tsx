@@ -3,12 +3,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getStatusColor, TASK_STATUS_OPTIONS, TASK_PRIORITY_OPTIONS } from '../constants';
 import { Task, TaskStatus, Lead, Customer, Deal, User, CustomFieldDefinition } from '../types';
-import { PlusCircleIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon } from '../components/ui/Icon';
+import { PlusCircleIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, CheckCircleIcon } from '../components/ui/Icon';
 import TaskFormModal from '../components/tasks/TaskFormModal';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import Pagination, { ITEMS_PER_PAGE_OPTIONS } from '../components/ui/Pagination';
 import { useSortableData } from '../hooks/useSortableData';
 import SortIcon from '../components/ui/SortIcon';
+import { canPerformAction } from '../utils/permissions';
 
 const TASK_PRIORITY_OPTIONS_FILTER: { value: Task['priority'] | '', label: string }[] = [
     { value: '', label: 'All Priorities' },
@@ -71,6 +72,9 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, leads, customers, deals, o
   const [selectedAssignedTo, setSelectedAssignedTo] = useState<string>('');
   const [selectedRelatedType, setSelectedRelatedType] = useState<Task['relatedTo']['type'] | ''>('');
   const [selectedCreatedBy, setSelectedCreatedBy] = useState<string>('');
+
+  // Animation state
+  const [animatingTaskId, setAnimatingTaskId] = useState<string | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -141,6 +145,27 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, leads, customers, deals, o
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
     setIsModalOpen(true);
+  };
+
+  const handleQuickComplete = (task: Task) => {
+    if (!canPerformAction(currentUser, 'UPDATE', 'Task', task)) {
+        alert("Permission Denied: You cannot update this task.");
+        return;
+    }
+    // Start animation
+    setAnimatingTaskId(task.id);
+    
+    // Delay actual update to let animation play
+    setTimeout(() => {
+        const { id, createdAt, completedAt, isDeleted, deletedAt, createdBy, customFields, ...editableProps } = task;
+        onSaveTask({
+            ...editableProps,
+            status: TaskStatus.COMPLETED,
+            id: task.id,
+            customFields: customFields || {}
+        });
+        setAnimatingTaskId(null);
+    }, 500);
   };
 
   const openConfirmationModal = (
@@ -334,57 +359,76 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, leads, customers, deals, o
             <>
             {/* Mobile View: Cards */}
             <div className="sm:hidden space-y-4 p-4">
-                {paginatedTasks.map(task => (
-                    <div key={task.id} className="bg-white p-4 rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-start mb-2">
-                            <h3 className="text-lg font-semibold text-dark-text leading-tight">{task.title}</h3>
-                            <div className="flex space-x-1 flex-shrink-0">
-                                <button 
-                                    onClick={() => handleEditTask(task)} 
-                                    className="text-primary hover:text-primary-dark p-1.5 bg-blue-50 rounded-full"
-                                    aria-label={`Edit ${task.title}`}
-                                >
-                                    <PencilSquareIcon className="h-4 w-4" />
-                                </button>
-                                <button 
-                                    onClick={() => handleDeleteTaskWithConfirmation(task)} 
-                                    className="text-red-600 hover:text-red-800 p-1.5 bg-red-50 rounded-full"
-                                    aria-label={`Delete ${task.title}`}
-                                >
-                                    <TrashIcon className="h-4 w-4" />
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-2 mb-3">
-                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(task.status)}`}>
-                                {task.status}
-                            </span>
-                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
-                                {task.priority || 'Medium'}
-                            </span>
-                        </div>
-
-                        <div className="space-y-2 text-sm text-gray-600">
-                            <div className="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <span className="font-medium text-gray-500">Due Date:</span>
-                                <span>{task.dueDate}</span>
-                            </div>
-                            <div className="flex justify-between items-center border-b border-gray-100 pb-2">
-                                <span className="font-medium text-gray-500">Assigned To:</span>
-                                <span>{task.assignedTo || 'Unassigned'}</span>
-                            </div>
-                            {task.relatedTo && (
-                                <div className="pt-1">
-                                    <span className="font-medium text-gray-500 block mb-1">Related To:</span>
-                                    <span className="text-gray-700 bg-gray-50 px-2 py-1 rounded block truncate">
-                                        {getRelatedToText(task)}
-                                    </span>
+                {paginatedTasks.map(task => {
+                    const isAnimating = animatingTaskId === task.id;
+                    const canEditCurrent = canPerformAction(currentUser, 'UPDATE', 'Task', task);
+                    return (
+                        <div 
+                            key={task.id} 
+                            className={`p-4 rounded-lg shadow border border-gray-200 transition-all duration-500 ease-out 
+                                ${isAnimating ? 'bg-green-100 border-green-300 scale-[0.98]' : 'bg-white hover:shadow-md'}`}
+                        >
+                            <div className="flex justify-between items-start mb-2">
+                                <h3 className={`text-lg font-semibold leading-tight transition-colors ${isAnimating ? 'text-green-800' : 'text-dark-text'}`}>{task.title}</h3>
+                                <div className="flex space-x-1 flex-shrink-0">
+                                    {!isAnimating && task.status !== TaskStatus.COMPLETED && (
+                                        <button 
+                                            onClick={() => handleQuickComplete(task)} 
+                                            disabled={!canEditCurrent}
+                                            className="text-green-600 hover:text-green-800 p-1.5 bg-green-50 rounded-full disabled:opacity-50"
+                                            aria-label={`Mark ${task.title} as Complete`}
+                                            title="Mark as Complete"
+                                        >
+                                            <CheckCircleIcon className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                    <button 
+                                        onClick={() => handleEditTask(task)} 
+                                        className="text-primary hover:text-primary-dark p-1.5 bg-blue-50 rounded-full"
+                                        aria-label={`Edit ${task.title}`}
+                                    >
+                                        <PencilSquareIcon className="h-4 w-4" />
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteTaskWithConfirmation(task)} 
+                                        className="text-red-600 hover:text-red-800 p-1.5 bg-red-50 rounded-full"
+                                        aria-label={`Delete ${task.title}`}
+                                    >
+                                        <TrashIcon className="h-4 w-4" />
+                                    </button>
                                 </div>
-                            )}
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-2 mb-3">
+                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(task.status)}`}>
+                                    {task.status}
+                                </span>
+                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
+                                    {task.priority || 'Medium'}
+                                </span>
+                            </div>
+
+                            <div className="space-y-2 text-sm text-gray-600">
+                                <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                                    <span className="font-medium text-gray-500">Due Date:</span>
+                                    <span>{task.dueDate}</span>
+                                </div>
+                                <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                                    <span className="font-medium text-gray-500">Assigned To:</span>
+                                    <span>{task.assignedTo || 'Unassigned'}</span>
+                                </div>
+                                {task.relatedTo && (
+                                    <div className="pt-1">
+                                        <span className="font-medium text-gray-500 block mb-1">Related To:</span>
+                                        <span className="text-gray-700 bg-gray-50 px-2 py-1 rounded block truncate">
+                                            {getRelatedToText(task)}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* Desktop View: Table */}
@@ -403,33 +447,52 @@ const TasksPage: React.FC<TasksPageProps> = ({ tasks, leads, customers, deals, o
                     </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                    {paginatedTasks.map((task) => (
-                        <tr key={task.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text">{task.title}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(task.status)}`}>
-                            {task.status}
-                            </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
-                            {task.priority || 'Medium'}
-                            </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden sm:table-cell">{task.dueDate}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden md:table-cell">{task.assignedTo || 'Unassigned'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">{task.createdBy?.name || 'System'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">{getRelatedToText(task)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                            <button onClick={() => handleEditTask(task)} className="text-primary hover:text-primary-dark p-1" aria-label={`Edit ${task.title}`}>
-                            <PencilSquareIcon className="h-5 w-5" />
-                            </button>
-                            <button onClick={() => handleDeleteTaskWithConfirmation(task)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete ${task.title}`}>
-                            <TrashIcon className="h-5 w-5" />
-                            </button>
-                        </td>
-                        </tr>
-                    ))}
+                    {paginatedTasks.map((task) => {
+                        const isAnimating = animatingTaskId === task.id;
+                        const canEditCurrent = canPerformAction(currentUser, 'UPDATE', 'Task', task);
+                        return (
+                            <tr 
+                                key={task.id} 
+                                className={`transition-all duration-500 ease-out 
+                                    ${isAnimating ? 'bg-green-100' : 'hover:bg-gray-50'}`}
+                            >
+                            <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${isAnimating ? 'text-green-800' : 'text-dark-text'}`}>{task.title}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(task.status)}`}>
+                                {task.status}
+                                </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
+                                {task.priority || 'Medium'}
+                                </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden sm:table-cell">{task.dueDate}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden md:table-cell">{task.assignedTo || 'Unassigned'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">{task.createdBy?.name || 'System'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text hidden lg:table-cell">{getRelatedToText(task)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 flex items-center">
+                                {!isAnimating && task.status !== TaskStatus.COMPLETED && (
+                                    <button 
+                                        onClick={() => handleQuickComplete(task)} 
+                                        disabled={!canEditCurrent}
+                                        className="text-green-600 hover:text-green-800 p-1 disabled:opacity-50 disabled:cursor-not-allowed" 
+                                        aria-label={`Mark ${task.title} as Complete`}
+                                        title="Mark as Complete"
+                                    >
+                                        <CheckCircleIcon className="h-5 w-5" />
+                                    </button>
+                                )}
+                                <button onClick={() => handleEditTask(task)} className="text-primary hover:text-primary-dark p-1" aria-label={`Edit ${task.title}`}>
+                                <PencilSquareIcon className="h-5 w-5" />
+                                </button>
+                                <button onClick={() => handleDeleteTaskWithConfirmation(task)} className="text-red-600 hover:text-red-800 p-1" aria-label={`Delete ${task.title}`}>
+                                <TrashIcon className="h-5 w-5" />
+                                </button>
+                            </td>
+                            </tr>
+                        );
+                    })}
                     </tbody>
                 </table>
             </div>
